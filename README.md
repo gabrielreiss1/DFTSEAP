@@ -6,15 +6,35 @@ direto no navegador. Os dados ficam no `localStorage` da máquina de quem usa.
 
 ## Rodando
 
-A aba de IA chama a API da Anthropic pelo navegador, e essa chamada é
-bloqueada quando a página é aberta pelo disco (`file://`). Sirva a pasta:
+A aba de IA chama a API da Anthropic pelo navegador, e o navegador bloqueia essa
+chamada quando a página é aberta direto do disco (`file://`) — nesse caso ela
+falha dizendo que a requisição não chegou a sair. Por isso a pasta precisa ser
+**servida**. O resto do sistema funciona abrindo o `index.html` direto.
+
+**Do jeito mais curto**, use o atalho que já vem na pasta — ele sobe o servidor
+e abre o navegador sozinho:
+
+- Windows: dois cliques em **`abrir.cmd`**
+- macOS e Linux: **`./abrir.sh`** no terminal
+
+Deixe a janela do terminal aberta enquanto usar o DFT; ela é o servidor. Para
+parar, `Ctrl+C` ou feche a janela. Para trocar a porta, defina `PORTA` (por
+exemplo `PORTA=8080 ./abrir.sh`).
+
+**Na mão**, se preferir, dentro da pasta do `index.html`:
 
 ```bash
-python3 -m http.server 8000
+python3 -m http.server 8000    # ou: npx --yes http-server -p 8000
 # depois abra http://localhost:8000
 ```
 
-O resto do sistema funciona também abrindo o `index.html` direto.
+Os atalhos procuram Python e, na falta dele, Node. Sem nenhum dos dois, instale
+o Python em <https://www.python.org/downloads/> — no Windows, marque *Add Python
+to PATH* durante a instalação.
+
+**Sem instalar nada**, dá para publicar o DFT no GitHub Pages e acessá-lo por
+uma URL. Como a chave da API nunca fica no repositório, ela continua sendo
+digitada por quem usa e guardada só no navegador de cada um.
 
 ## Unidades e órgãos
 
