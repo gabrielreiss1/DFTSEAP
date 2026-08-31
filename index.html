@@ -911,6 +911,9 @@ details.card-detalhe {
 .ia-arq-tam { font: 500 10.5px var(--mono); color: var(--faint); }
 .ia-cols { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; }
 .ia-cols label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.imp-resumo { list-style: none; display: flex; flex-direction: column; gap: 7px; margin: 10px 0 0; }
+.imp-resumo li { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--ink); }
+.imp-resumo .badge { min-width: 42px; justify-content: center; }
 .ia-chave { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
 .ia-chave-ok {
   font-size: 12.5px; color: var(--ink); background: rgba(19, 96, 216, .08);
@@ -974,287 +977,344 @@ details.card-detalhe {
 /* ===== data-unidades.js ===== */
 // Gerado a partir de dft.xlsx — 280 unidades
 const DFT_METODOS = ["Comparação entre Pares", "Direcionador Histórico ou Esforço por Entrega", "Direcionador Referencial/Normativo", "Capacidade e Consenso Técnico"];
+/* ============================================================
+   DFT — Anexo I: unidades dimensionáveis por órgão e método
+   Fonte: "Anexo I — Unidades dimensionáveis por órgão e método de
+   dimensionamento", SEAP/PR, posição de 28/08/2026.
+
+   246 unidades validadas nos nove órgãos que devolveram o instrumento de
+   taxonomia, mais as 57 da relação prévia de SEED e SESA, ainda pendentes de
+   manifestação — 303 no total, como no resumo da própria planilha.
+
+   Colunas: órgão, sigla, nome, natureza, método, código, replicabilidade.
+   O método é o índice em DFT_METODOS. A planilha separa "Razão por
+   Direcionador" de "Medição de Esforço por Atividade"; o DFT trata as duas
+   sob um método só (índice 1), que é o que o motor de cálculo implementa.
+   Onde a planilha não trouxe sigla, ela foi derivada das iniciais do nome
+   (CGE/UTI, SEAP/DRL, SEAP/DAM). Código e replicabilidade vêm vazios nas
+   unidades de SEED e SESA, que ainda não passaram pela validação.
+   ============================================================ */
+const DFT_REPLICABILIDADE = ['Transversal Replicável', 'Singular', 'Replicável por Porte'];
+
+// órgão, tipo, eixo, situação da manifestação
+const DFT_ORGAOS_RAW = [
+["AMEP", "Administração Indireta", "Desenvolvimento Urbano e Econômico", "Instrumento devolvido"],
+["CEP", "Administração Indireta", "Educação", "Instrumento devolvido"],
+["CGE", "Administração Direta", "Administração Geral do Governo", "Instrumento devolvido"],
+["FUNDEPAR", "Administração Indireta", "Educação", "Instrumento devolvido"],
+["IPARDES", "Administração Indireta", "Desenvolvimento Urbano e Econômico", "Instrumento devolvido"],
+["SEAP", "Administração Direta", "Administração Geral do Governo", "Instrumento devolvido"],
+["SEED", "", "", "Pendente de manifestação"],
+["SEJU", "Administração Direta", "Justiça e direitos", "Instrumento devolvido"],
+["SEPL", "Administração Direta", "Administração Geral do Governo", "Instrumento devolvido"],
+["SESA", "", "", "Pendente de manifestação"],
+["SETU", "Administração Direta", "Desenvolvimento Urbano e Econômico", "Instrumento devolvido"]
+];
+
 const DFT_UNIDADES_RAW = [
-["SEAP", "GS", "Gabinete do Secretário", "Meio", 1],
-["SEAP", "AT", "Assessoria Técnica", "Meio", 1],
-["SEAP", "DG", "Diretor Geral", "Meio", 3],
-["SEAP", "NAS", "Núcleo Administrativo Setorial", "Meio", 0],
-["SEAP", "NRHS", "Núcleo de Recursos Humanos Setorial", "Meio", 0],
-["SEAP", "NFS", "Núcleo Fazendário Setorial", "Meio", 0],
-["SEAP", "NPS", "Núcleo de Planejamento Setorial", "Meio", 0],
-["SEAP", "NICS", "Núcleo de Integridade e Compliance Setorial", "Meio", 0],
-["SEAP", "NCS", "Núcleo de Comunicação Setorial", "Meio", 0],
-["SEAP", "DEAP", "Departamento do Arquivo Público", "Fim", 1],
-["SEAP", "EGP", "Escola de Gestão do Paraná", "Fim", 1],
-["SEAP", "DECON", "Departamento de Logística para Contratações Públicas", "Fim", 1],
-["SEAP", "DP", "Divisão de Planejamento", "Fim", 1],
-["SEAP", "DL", "Divisão de Licitação", "Fim", 1],
-["SEAP", "DS", "Divisão de Suporte ao Sistema de Gestão de Materiais", "Fim", 1],
-["SEAP", "DPE", "Departamento do Patrimônio", "Fim", 1],
-["SEAP", "DBM", "Divisão de Bem Imóvel", "Fim", 1],
-["SEAP", "DBI", "Divisão de Bem Móvel", "Fim", 1],
-["SEAP", "DRA", "Divisão de Regularização e Alienação", "Fim", 1],
-["SEAP", "DRH", "Departamento de Recursos Humanos e Previdência", "Fim", 1],
-["SEAP", "DCRH", "Divisão de Cadastro de Cargos", "Fim", 1],
-["SEAP", "DCSA", "Divisão de Cargos e Salários", "Fim", 1],
-["SEAP", "D&RH", "Divisão de Recrutamento e Seleção de RH", "Fim", 1],
-["SEAP", "DIRH", "Divisão de Gestão da Informação de RH", "Fim", 1],
-["SEAP", "DGF", "Divisão de Seguridade Funcional", "Fim", 1],
-["SEAP", "DE", "Divisão de Estágio", "Fim", 1],
-["SEAP", "DSS", "Departamento de Saúde do Servidor", "Fim", 1],
-["SEAP", "DAS", "Divisão de Assistência à Saúde", "Fim", 1],
-["SEAP", "DPM", "Divisão de Perícia Médica", "Fim", 2],
-["SEAP", "DETO", "Departamento de Gestão do Transporte Oficial", "Fim", 1],
-["SEAP", "DVD", "Divisão de Viagens Oficiais", "Fim", 1],
-["SEAP", "DD", "Divisão de Documentação", "Fim", 1],
-["SEAP", "DA", "Divisão de Abastecimento", "Fim", 1],
-["SEAP", "DM", "Divisão de Manutenção", "Fim", 1],
-["SEAP", "DGV", "Divisão de Gestão de Veículos", "Fim", 1],
-["SEAP", "DOS", "Departamento de Operações e Serviços", "Fim", 1],
-["SEAP", "DCA", "Divisão de Coordenação Administrativa", "Fim", 1],
-["SEAP", "DCS", "Divisão de TI, Comunicação e Sistemas", "Fim", 1],
-["SEAP", "DCS", "Divisão de Gestão de Contratos", "Fim", 1],
-["SEED", "GS", "Gabinete do Secretário", "Meio", 1],
-["SEED", "AT", "Assessoria Técnica", "Meio", 1],
-["SEED", "DG", "Diretor Geral", "Meio", 3],
-["SEED", "NPS", "Núcleo de Planejamento Setorial", "Meio", 0],
-["SEED", "NICS", "Núcleo de Integridade e Compliance Setorial", "Meio", 0],
-["SEED", "NCS", "Núcleo de Comunicação Setorial", "Meio", 0],
-["SEED", "NAS", "Núcleo Administrativo Setorial", "Meio", 0],
-["SEED", "NRHS", "Núcleo de Recursos Humanos Setorial", "Meio", 0],
-["SEED", "NFS", "Núcleo Fazendário Setorial", "Meio", 0],
-["SEED", "DEDUC", "Diretoria de Educação", "Fim", 3],
-["SEED", "DAP", "Departamento de Acompanhamento Pedagógico", "Fim", 1],
-["SEED", "DDC", "Departamento de Desenvolvimento Curricular", "Fim", 1],
-["SEED", "DEIN", "Departamento de Educação Inclusiva", "Fim", 1],
-["SEED", "DEPEJA", "Departamento de Educação Profissional e EJA", "Fim", 1],
-["SEED", "DPEB", "Departamento de Programas para a Educação Básica", "Fim", 1],
-["SEED", "DPGE", "Diretoria de Planejamento e Gestão Escolar", "Fim", 3],
-["SEED", "DGE", "Departamento de Gestão Escolar", "Fim", 1],
-["SEED", "DGDE", "Departamento de Governança de Dados Educacionais", "Fim", 1],
-["SEED", "DNE", "Departamento de Normatização Escolar", "Fim", 2],
-["SEED", "DPR", "Departamento de Planejamento da Rede", "Fim", 1],
-["SEED", "DTI", "Diretoria de Tecnologia e Inovação Educacional", "Inovação", 3],
-["SEED", "DIE", "Departamento de Inovação Educacional", "Inovação", 3],
-["SEED", "DTEC", "Departamento de Tecnologia da Informação", "Inovação", 3],
-["SEED", "NREs", "Núcleos Regionais de Educação", "Fim", 0],
-["SEJU", "GS", "Gabinete do Secretário", "Meio", 1],
-["SEJU", "AT", "Assessoria Técnica", "Meio", 1],
-["SEJU", "DG", "Diretor Geral", "Meio", 3],
-["SEJU", "UTEC", "Unidade Técnica de Sistemas de Informação e Tecnologia", "Meio", 0],
-["SEJU", "UTCL", "Unidade Técnica de Contratos e Licitações", "Meio", 0],
-["SEJU", "UTEA", "Unidade Técnica de Engenharia e Arquitetura", "Meio", 1],
-["SEJU", "UTCG", "Unidade Técnica de Corregedoria", "Meio", 0],
-["SEJU", "UTSC", "Unidade Técnica de Suporte aos Colegiados", "Meio", 1],
-["SEJU", "UTPA", "Unidade Técnica do Projeto Paraná em Ação", "Meio", 3],
-["SEJU", "NPS", "Núcleo de Planejamento Setorial", "Meio", 0],
-["SEJU", "NICS", "Núcleo de Integridade e Compliance Setorial", "Meio", 0],
-["SEJU", "NCS", "Núcleo de Comunicação Setorial", "Meio", 0],
-["SEJU", "NAS", "Núcleo Administrativo Setorial", "Meio", 0],
-["SEJU", "NRHS", "Núcleo de Recursos Humanos Setorial", "Meio", 0],
-["SEJU", "NFS", "Núcleo Fazendário Setorial", "Meio", 0],
-["SEJU", "DJUS", "Diretoria de Justiça", "Fim", 3],
-["SEJU", "PROCON/PR", "Coordenação Estadual de Defesa dos Direitos do Consumidor", "Fim", 1],
-["SEJU", "CGS", "Coordenação de Gestão do Sistema Socioeducativo", "Fim", 2],
-["SEJU", "CPJ", "Coordenação de Proteção e Justiça", "Fim", 1],
-["SEJU", "DCDH", "Diretoria de Cidadania e Direitos Humanos", "Fim", 3],
-["SEJU", "COCID", "Coordenação de Cidadania", "Fim", 1],
-["SEJU", "CODHU", "Coordenação de Direitos Humanos", "Fim", 1],
-["SEJU", "ESEDH", "Escola de Educação em Direitos Humanos", "Fim", 1],
-["SEJU", "NRJUs", "Núcleos Regionais da Justiça e Cidadania", "Fim", 0],
-["SEPL", "GS", "Gabinete do Secretário", "Meio", 1],
-["SEPL", "AT", "Assessoria Técnica", "Meio", 1],
-["SEPL", "DG", "Diretoria-Geral", "Meio", 3],
-["SEPL", "UTEC", "Unidade Técnica de Sistemas de Informação e Tecnologia", "Meio", 0],
-["SEPL", "UGPAR", "Unidade Gestora do Programa de Parcerias do Paraná", "Meio", 1],
-["SEPL", "NPS", "Núcleo de Planejamento Setorial", "Meio", 0],
-["SEPL", "NAS", "Núcleo Administrativo Setorial", "Meio", 0],
-["SEPL", "NICS", "Núcleo de Integridade e Compliance Setorial", "Meio", 0],
-["SEPL", "NRHS", "Núcleo de Recursos Humanos Setorial", "Meio", 0],
-["SEPL", "NFS", "Núcleo Fazendário Setorial", "Meio", 0],
-["SEPL", "NCS", "Núcleo de Comunicação Setorial", "Meio", 0],
-["SEPL", "DAG", "Diretoria de Aperfeiçoamento da Gestão Governamental", "Fim", 3],
-["SEPL", "CCR", "Coordenação de Captação de Recursos", "Fim", 1],
-["SEPL", "CDT", "Coordenação de Desenvolvimento Territorial Integrado", "Fim", 1],
-["SEPL", "DDI", "Diretoria de Desenvolvimento Institucional", "Fim", 3],
-["SEPL", "CMI", "Coordenação de Modernização Institucional", "Fim", 1],
-["SEPL", "CMA", "Coordenação de Monitoramento e Avaliação", "Fim", 1],
-["SEPL", "CPC", "Coordenação do Plano de Contratações Anual", "Fim", 1],
-["SEPL", "CNP", "Coordenação dos Núcleos de Planejamento Setorial", "Fim", 1],
-["SEPL", "NPS", "Núcleos de Planejamento Setoriais", "Fim", 0],
-["SESA", "GS", "Gabinete do Secretário", "Meio", 1],
-["SESA", "AT", "Assessoria Técnica", "Meio", 1],
-["SESA", "DG", "Diretor Geral", "Meio", 3],
-["SESA", "NAS", "Núcleo Administrativo Setorial", "Meio", 0],
-["SESA", "NFS", "Núcleo Fazendário Setorial", "Meio", 0],
-["SESA", "NRHS", "Núcleo de Recursos Humanos Setorial", "Meio", 0],
-["SESA", "NICS", "Núcleo de Integridade e Compliance Setorial", "Meio", 0],
-["SESA", "NPS", "Núcleo de Planejamento Setorial", "Meio", 0],
-["SESA", "NCS", "Núcleo de Comunicação Setorial", "Meio", 0],
-["SESA", "OUV", "Ouvidoria Geral da Saúde", "Fim", 0],
-["SESA", "DAV", "Diretoria de Atenção e Vigilância em Saúde", "Fim", 3],
-["SESA", "COVE", "Coordenação de Vigilância Epidemiológica", "Fim", 2],
-["SESA", "CVIB", "Coordenação de Vigilância Sanitária", "Fim", 2],
-["SESA", "CVIA", "Coordenação de Vigilância Ambiental", "Fim", 2],
-["SESA", "CPRO", "Coordenação de Promoção da Saúde", "Fim", 1],
-["SESA", "CRAS", "Coordenação da Rede de Atenção à Saúde", "Fim", 1],
-["SESA", "DAD", "Diretoria Administrativa", "Meio", 3],
-["SESA", "COGV", "Coordenação de Governança em Aquisição", "Meio", 0],
-["SESA", "COMP", "Coordenação de Material e Patrimônio", "Meio", 0],
-["SESA", "COEN", "Coordenação de Engenharia", "Meio", 1],
-["SESA", "DAR", "Diretoria de Articulação Regional", "Fim", 3],
-["SESA", "DES", "Diretoria Executiva de Saúde", "Fim", 3],
-["SESA", "ESPP", "Escola de Saúde Pública do Paraná", "Fim", 1],
-["SESA", "CFRH", "Centro Formador de Recursos Humanos", "Fim", 1],
-["SESA", "COAF", "Coordenação de Assistência Farmacêutica", "Fim", 2],
-["SESA", "FUNSAÚDE", "Diretoria Executiva do Fundo Estadual de Saúde", "Fim", 3],
-["SESA", "DGS", "Diretoria de Gestão em Saúde", "Fim", 3],
-["SESA", "CCCS", "Coordenação de Contratualização de Cuidados em Saúde", "Fim", 1],
-["SESA", "CRASS", "Coordenação de Regulação de Acesso aos Serviços de Saúde", "Fim", 2],
-["SESA", "CAAM", "Coordenação de Auditoria, Avaliação e Monitoramento", "Fim", 1],
-["SESA", "CSET", "Coordenação do Sistema Estadual de Transplante", "Fim", 2],
-["SESA", "CGSP", "Coordenação de Gestão de Serviços Próprios", "Fim", 2],
-["SESA", "RS", "Regionais de Saúde", "Fim", 0],
-["SETU", "GS", "Gabinete do Secretário", "Meio", 1],
-["SETU", "ATJ", "Assessoria Técnica Jurídica", "Meio", 1],
-["SETU", "DG", "Diretoria Geral", "Meio", 3],
-["SETU", "NAS", "Núcleo Administrativo Setorial", "Meio", 0],
-["SETU", "NFS", "Núcleo Fazendário Setorial", "Meio", 0],
-["SETU", "NRHS", "Núcleo de Recursos Humanos Setorial", "Meio", 0],
-["SETU", "NICS", "Núcleo de Integridade e Compliance Setorial", "Meio", 0],
-["SETU", "NCS", "Núcleo de Comunicação Setorial", "Meio", 0],
-["SETU", "NPS", "Núcleo de Planejamento Setorial", "Meio", 0],
-["SETU", "DGSQ", "Diretoria de Gestão, Sustentabilidade e Qualificação", "Fim", 3],
-["SETU", "CGST", "Coordenadoria de Gestão e Sustentabilidade do Turismo", "Fim", 1],
-["SETU", "CQT", "Coordenadoria de Qualificação do Turismo", "Fim", 1],
-["SETU", "DPIIT", "Diretoria de Promoção, Inovação e Inteligência Turística", "Inovação", 3],
-["SETU", "CP", "Coordenadoria de Promoção e Inovação Turística", "Inovação", 3],
-["SETU", "CIIT", "Coordenadoria de Inteligência e Estratégia Turística", "Inovação", 3],
-["SETU", "NRTs", "Núcleos Regionais de Turismo", "Fim", 0],
-["SETU", "NR-DV", "Núcleo Regional – Dois Vizinhos", "Fim", 0],
-["SETU", "NR-FI", "Núcleo Regional – Foz do Iguaçu", "Fim", 0],
-["SETU", "NR-IV", "Núcleo Regional – Ivaiporã", "Fim", 0],
-["SETU", "NR-JC", "Núcleo Regional – Jacarezinho", "Fim", 0],
-["SETU", "NR-LO", "Núcleo Regional – Loanda", "Fim", 0],
-["SETU", "NR-PG", "Núcleo Regional – Paranaguá", "Fim", 0],
-["SETU", "NR-PG2", "Núcleo Regional – Ponta Grossa", "Fim", 0],
-["SETU", "NR-UM", "Núcleo Regional – Umuarama", "Fim", 0],
-["CGE", "GC", "Gabinete do Controlador", "Meio", 1],
-["CGE", "AT", "Assessoria Técnica", "Meio", 1],
-["CGE", "DG", "Diretor Geral", "Meio", 3],
-["CGE", "NAS", "Núcleo Administrativo Setorial", "Meio", 0],
-["CGE", "NRHS", "Núcleo de Recursos Humanos Setorial", "Meio", 0],
-["CGE", "NFS", "Núcleo Fazendário Setorial", "Meio", 0],
-["CGE", "NPS", "Núcleo de Planejamento Setorial", "Meio", 0],
-["CGE", "NICS", "Núcleo de Integridade e Compliance Setorial", "Meio", 0],
-["CGE", "NCS", "Núcleo de Comunicação Setorial", "Meio", 0],
-["CGE", "DIIE", "Diretor de Inteligência e Informações Estratégicas", "Inovação", 3],
-["CGE", "CORR", "Coordenadoria de Corregedoria", "Fim", 1],
-["CGE", "ODP", "Observatório de Despesa Pública", "Fim", 1],
-["CGE", "OUV", "Coordenadoria de Ouvidoria", "Fim", 0],
-["CGE", "DACG", "Diretor de Auditoria, Controle e Gestão", "Fim", 3],
-["CGE", "CDP", "Coordenadoria de Desenvolvimento Profissional", "Fim", 1],
-["CGE", "CCI", "Coordenadoria de Controle Interno", "Fim", 1],
-["CGE", "CIC", "Coordenadoria de Integridade e Compliance", "Fim", 1],
-["CGE", "CTCS", "Coordenadoria de Transparência e Controle Social", "Fim", 1],
-["CGE", "NICS", "Núcleos de Integridade e Compliance Setoriais", "Fim", 0],
-["AMEP", "DP", "Diretor Presidente", "Meio", 3],
-["AMEP", "CG", "Chefe de Gabinete", "Meio", 1],
-["AMEP", "AT", "Assessoria Técnica", "Meio", 1],
-["AMEP", "UNIC", "Unidade de Integridade e Compliance", "Meio", 0],
-["AMEP", "UTTI", "Unidade Técnica de Tecnologia da Informação", "Meio", 0],
-["AMEP", "UTLC", "Unidade Técnica de Licitações e Contratos", "Meio", 0],
-["AMEP", "DIAF", "Diretor Administrativo e Financeiro", "Meio", 3],
-["AMEP", "DOF", "Departamento Orçamentário e Financeiro", "Meio", 0],
-["AMEP", "DCO", "Departamento de Contabilidade", "Meio", 0],
-["AMEP", "DRH", "Departamento de Recursos Humanos", "Meio", 0],
-["AMEP", "DAD", "Departamento de Administração", "Meio", 0],
-["AMEP", "DPUR", "Diretor de Planejamento Urbano", "Fim", 3],
-["AMEP", "DOT", "Departamento de Controle da Organização Territorial", "Fim", 2],
-["AMEP", "DPM", "Departamento de Planejamento Metropolitano", "Fim", 1],
-["AMEP", "DIG", "Departamento de Inteligência Geográfica", "Fim", 1],
-["AMEP", "DTIM", "Diretor de Transporte Coletivo Intermunicipal", "Fim", 3],
-["AMEP", "DGT", "Departamento de Gestão do Transporte Coletivo Metropolitano", "Fim", 1],
-["AMEP", "DBE", "Departamento de Cálculo Tarifário e Bilhetagem Eletrônica", "Fim", 1],
-["AMEP", "DOP", "Departamento de Operações", "Fim", 1],
-["AMEP", "DIF", "Departamento de Inspeção Técnica da Frota", "Fim", 2],
-["AMEP", "DIOB", "Diretor de Obras", "Fim", 3],
-["AMEP", "DEP", "Departamento de Estudos e Projetos", "Fim", 1],
-["AMEP", "DOS", "Departamento de Obras e Serviços", "Fim", 1],
-["AMEP", "DGA", "Departamento de Gestão Ambiental", "Fim", 2],
-["FUNDEPAR", "DP", "Presidência", "Meio", 3],
-["FUNDEPAR", "GAB", "Gabinete da Presidência", "Meio", 1],
-["FUNDEPAR", "ATA", "Assessoria Técnico-Administrativa do Gabinete da Presidência", "Meio", 1],
-["FUNDEPAR", "AT", "Assessoria Técnica", "Meio", 1],
-["FUNDEPAR", "AP", "Assessoria de Projetos", "Meio", 1],
-["FUNDEPAR", "CG", "Chefia de Gabinete", "Meio", 1],
-["FUNDEPAR", "ASCOM", "Assessoria de Comunicação", "Meio", 0],
-["FUNDEPAR", "UNIC", "Unidade de Integridade e Compliance", "Meio", 0],
-["FUNDEPAR", "CI", "Controle Interno", "Meio", 0],
-["FUNDEPAR", "COM", "Compliance", "Meio", 0],
-["FUNDEPAR", "OUV", "Ouvidoria", "Meio", 0],
-["FUNDEPAR", "TRP", "Transparência", "Meio", 0],
-["FUNDEPAR", "UL", "Unidade de Licitação", "Meio", 0],
-["FUNDEPAR", "DIAF", "Diretoria Administrativo-Financeira", "Meio", 3],
-["FUNDEPAR", "DARH", "Departamento de Administração e Recursos Humanos", "Meio", 0],
-["FUNDEPAR", "DVTI", "Divisão de Tecnologia da Informação", "Meio", 0],
-["FUNDEPAR", "DVMS", "Divisão de Manutenção e Serviços", "Meio", 1],
-["FUNDEPAR", "DVGP", "Divisão de Gestão de Patrimônio", "Meio", 0],
-["FUNDEPAR", "DVRH", "Divisão de Recursos Humanos", "Meio", 0],
-["FUNDEPAR", "DFO", "Departamento Financeiro e Orçamentário", "Meio", 0],
-["FUNDEPAR", "DVO", "Divisão Orçamentária", "Meio", 0],
-["FUNDEPAR", "DVPDDE", "Divisão do Programa Dinheiro Direto na Escola", "Meio", 1],
-["FUNDEPAR", "DVFR", "Divisão do Programa Fundo Rotativo", "Meio", 1],
-["FUNDEPAR", "DVFIN", "Divisão Financeira", "Meio", 0],
-["FUNDEPAR", "DVCC", "Divisão de Convênios e Contratos", "Meio", 1],
-["FUNDEPAR", "DMS", "Departamento de Materiais e Suprimento Escolar", "Fim", 1],
-["FUNDEPAR", "DVPM", "Divisão de Planejamento de Materiais", "Fim", 1],
-["FUNDEPAR", "DVCM", "Divisão de Controle de Materiais", "Fim", 1],
-["FUNDEPAR", "DVCO", "Divisão de Contratações", "Fim", 1],
-["FUNDEPAR", "DVRP", "Divisão de Registros e Publicações", "Fim", 1],
-["FUNDEPAR", "DNA", "Departamento de Nutrição e Alimentação Escolar", "Fim", 2],
-["FUNDEPAR", "DVPA", "Divisão de Programas de Alimentação Escolar", "Fim", 2],
-["FUNDEPAR", "DVTA", "Divisão Técnica de Alimentação Escolar", "Fim", 2],
-["FUNDEPAR", "DVLM", "Divisão de Logística e Manutenção de Alimentação", "Fim", 1],
-["FUNDEPAR", "DVEC", "Divisão de Execução e Controle", "Fim", 1],
-["FUNDEPAR", "DTE", "Departamento de Transporte Escolar", "Fim", 2],
-["FUNDEPAR", "DITE", "Diretoria Técnica de Engenharia", "Fim", 3],
-["FUNDEPAR", "DPO", "Departamento de Projetos e Orçamentos", "Fim", 1],
-["FUNDEPAR", "DVPO", "Divisão de Planejamento e Orçamentação de Obras e Serviços de Engenharia", "Fim", 1],
-["FUNDEPAR", "DVPR", "Divisão de Projetos", "Fim", 1],
-["FUNDEPAR", "DOF", "Departamento de Obras e Fiscalização", "Fim", 1],
-["FUNDEPAR", "DVCE", "Divisão de Contratos de Engenharia", "Fim", 1],
-["FUNDEPAR", "DVFO", "Divisão de Fiscalização de Obras", "Fim", 1],
-["FUNDEPAR", "DFPE", "Divisão de Programas e Projetos Especiais", "Inovação", 3],
-["IPARDES", "DP", "Diretor Presidente", "Meio", 3],
-["IPARDES", "GAB", "Gabinete do Diretor-Presidente", "Meio", 1],
-["IPARDES", "UIC", "Unidade de Integridade e Compliance", "Meio", 0],
-["IPARDES", "AT", "Assessoria Técnica", "Meio", 1],
-["IPARDES", "DAF", "Diretoria Administrativo-Financeira", "Meio", 3],
-["IPARDES", "DA", "Departamento de Administração", "Meio", 0],
-["IPARDES", "DRH", "Departamento de Recursos Humanos", "Meio", 0],
-["IPARDES", "DF", "Departamento Financeiro", "Meio", 0],
-["IPARDES", "DPE", "Diretoria de Pesquisa", "Fim", 3],
-["IPARDES", "DAPP", "Departamento de Avaliação de Políticas Públicas", "Fim", 1],
-["IPARDES", "DEEA", "Departamento de Estudos Econômicos e Ambientais", "Fim", 1],
-["IPARDES", "DEPS", "Departamento de Estudos Populacionais e Sociais", "Fim", 1],
-["IPARDES", "DES", "Diretoria de Estatística", "Fim", 3],
-["IPARDES", "DGD", "Departamento de Gestão de Dados", "Fim", 1],
-["IPARDES", "DIP", "Departamento de Indicadores Periódicos", "Fim", 1],
-["IPARDES", "DMQ", "Departamento de Métodos Quantitativos", "Fim", 1],
-["CEP", "DIR", "Diretor", "Meio", 3],
-["CEP", "AT", "Assessoria Técnica", "Meio", 1],
-["CEP", "SEC", "Secretaria", "Meio", 1],
-["CEP", "GAA", "Grupo Auxiliar Administrativo", "Meio", 0],
-["CEP", "GARH", "Grupo Auxiliar de Recursos Humanos", "Meio", 0],
-["CEP", "GAF", "Grupo Auxiliar Financeiro", "Meio", 0],
-["CEP", "GAP", "Grupo Auxiliar de Planejamento", "Meio", 0],
-["CEP", "DP", "Divisão Pedagógica", "Fim", 1],
-["CEP", "SC", "Seção de Cursos", "Fim", 1],
-["CEP", "SCEE", "Serviço de Convênios Escola/Empresa", "Fim", 1],
-["CEP", "SAD", "Seção de Atividades Desportivas", "Fim", 1],
-["CEP", "DAC", "Divisão de Atividades Complementares", "Fim", 1],
-["CEP", "MUS", "Museu", "Fim", 1]
+["AMEP", "DP", "Diretor Presidente", "Meio", 0, "081202", 0],
+["AMEP", "DIAF", "Diretor Administrativo e Financeiro", "Meio", 0, "081208", 0],
+["AMEP", "GAB", "Chefe de Gabinete", "Meio", 0, "081303", 0],
+["AMEP", "AT", "Assessoria Técnica", "Meio", 0, "081304", 0],
+["AMEP", "UNIC", "Unidade de Integridade e Compliance", "Meio", 0, "081305", 0],
+["AMEP", "UTTI", "Unidade Técnica de Tecnologia da Informação", "Meio", 0, "081306", 0],
+["AMEP", "UTLC", "Unidade Técnica de Licitações e Contratos", "Meio", 0, "081307", 0],
+["AMEP", "DOF", "Departamento Orçamentário e Financeiro", "Meio", 0, "081309", 0],
+["AMEP", "DCO", "Departamento de Contabilidade", "Meio", 0, "081310", 0],
+["AMEP", "DRH", "Departamento de Recursos Humanos", "Meio", 0, "081311", 0],
+["AMEP", "DAD", "Departamento de Administração", "Meio", 0, "081312", 0],
+["AMEP", "DPUR", "Diretor de Planejamento Urbano", "Fim", 1, "082213", 1],
+["AMEP", "DTIM", "Diretor de Transporte Coletivo Intermunicipal Metropolitano", "Fim", 1, "082217", 1],
+["AMEP", "DIOB", "Diretor de Obras", "Fim", 1, "082222", 1],
+["AMEP", "DOT", "Departamento de Controle da Organização Territorial", "Fim", 1, "082314", 1],
+["AMEP", "DPM", "Departamento de Planejamento Metropolitano", "Fim", 1, "082315", 1],
+["AMEP", "DIG", "Departamento de Inteligência Geográfica", "Fim", 1, "082316", 1],
+["AMEP", "DGT", "Departamento de Gestão do Transporte Coletivo Intermunicipal Metropolitano", "Fim", 1, "082318", 1],
+["AMEP", "DBE", "Departamento de Cálculo Tarifário e Sitema de Bilhetagem Eletrônica", "Fim", 1, "082319", 1],
+["AMEP", "DOP", "Departamento de Operações", "Fim", 1, "082320", 1],
+["AMEP", "DIF", "Departamento de Inspeção Técnica da Frota", "Fim", 1, "082321", 1],
+["AMEP", "DEP", "Departamento de Engenharia e Projetos", "Fim", 1, "082323", 1],
+["AMEP", "DOS", "Departamento de Obras e Serviços", "Fim", 1, "082324", 1],
+["AMEP", "DGA", "Departamento de Gestão Ambiental", "Fim", 1, "082325", 1],
+["CEP", "DIRA", "Diretor Auxiliar", "Meio", 0, "", 0],
+["CEP", "DIR", "Diretor", "Meio", 0, "111202", 0],
+["CEP", "AT", "Assessoria Técnica", "Meio", 0, "111203", 0],
+["CEP", "SEC", "Secretaria", "Meio", 1, "111204", 1],
+["CEP", "GAA", "Grupo Auxiliar Administrativo/Contratos", "Meio", 0, "111305", 0],
+["CEP", "GAA", "Grupo Auxiliar Administrativo/Estrutura", "Meio", 0, "111305", 0],
+["CEP", "GARH", "Grupo Auxiliar de Recursos Humanos", "Meio", 0, "111306", 0],
+["CEP", "GAF", "Grupo Auxiliar Financeiro", "Meio", 0, "111307", 0],
+["CEP", "GAP", "Grupo Auxiliar de Planejamento", "Meio", 0, "111308", 0],
+["CEP", "INFO", "Informática", "Fim", 0, "", 0],
+["CEP", "BIB", "Biblioteca", "Fim", 1, "", 1],
+["CEP", "CMMU", "Centro de Mémorias/Museu", "Fim", 1, "", 1],
+["CEP", "EART", "Escolinha de Arte", "Fim", 1, "", 1],
+["CEP", "CELEM", "Centro de Línguas Estrangeira Moderna", "Fim", 1, "", 1],
+["CEP", "A.OUV", "Agente de Ouvidoria", "Fim", 0, "", 0],
+["CEP", "A.NICS", "Agente NICS", "Fim", 0, "", 0],
+["CEP", "PLAN/OB", "Planetário/Observatório", "Fim", 1, "", 1],
+["CEP", "SCOM", "Setor de Comunicação", "Fim", 0, "", 0],
+["CEP", "DE", "Divisão Pedagógica Educacional", "Fim", 1, "112209", 1],
+["CEP", "DAC", "Divisão de Atividades Complementares", "Fim", 1, "112213", 1],
+["CEP", "SADP", "Seção de Atividades Desportivas", "Fim", 1, "112312", 1],
+["CEP", "MUS", "Museu", "Fim", 1, "112314", 1],
+["CEP", "SET", "Serviço de Convênios Escola/Empresa Setor de Estágio", "Fim", 1, "112411", 1],
+["CGE", "EGP", "Escritório de Gestão de Projetos", "Meio", 3, "", 1],
+["CGE", "UTI", "Unidade Técnica de Informática", "Meio", 0, "", 0],
+["CGE", "GC", "Gabinete do Controlador", "Meio", 0, "071202", 0],
+["CGE", "AT", "Assessoria Técnica", "Meio", 0, "071203", 0],
+["CGE", "DG", "Diretor Geral", "Meio", 0, "071204", 0],
+["CGE", "NAS", "Núcleo Administrativo Setorial", "Meio", 0, "071205", 0],
+["CGE", "NRHS", "Núcleo de Recursos Humanos Setorial", "Meio", 0, "071206", 0],
+["CGE", "NFS", "Núcleo Fazendário Setorial", "Meio", 0, "071207", 0],
+["CGE", "NPS", "Núcleo de Planejamento Setorial", "Meio", 0, "071208", 0],
+["CGE", "NICS", "Núcleo de Integridade e Compliance Setorial", "Meio", 0, "071209", 0],
+["CGE", "NCS", "Núcleo de Comunicação Setorial", "Meio", 0, "071210", 0],
+["CGE", "ACONT", "Coordenadoria de Auditoria Contingencial", "Fim", 1, "", 1],
+["CGE", "APROG", "Coordenadoria de Auditoria Programada", "Fim", 1, "", 1],
+["CGE", "DIIE", "Diretor de Inteligência e Informações Estratégicas", "Fim", 3, "072211", 1],
+["CGE", "CORR", "Coordenadoria de Corregedoria", "Fim", 1, "072212", 1],
+["CGE", "ODP", "Observatório de Despesa Pública", "Fim", 3, "072213", 1],
+["CGE", "OUV", "Coordenadoria de Ouvidoria", "Fim", 0, "072214", 0],
+["CGE", "DACG", "Diretor de Auditoria, Controle e Gestão", "Fim", 1, "072215", 1],
+["CGE", "CDP", "Coordenadoria de Desenvolvimento Profissional", "Fim", 1, "072216", 1],
+["CGE", "CCI", "Coordenadoria de Controle Interno", "Fim", 1, "072217", 1],
+["CGE", "CIC", "Coordenadoria de Integridade e Compliance", "Fim", 1, "072218", 1],
+["CGE", "CTCS", "Coordenadoria de Transparência e Controle Social", "Fim", 1, "072219", 1],
+["CGE", "NICS", "Núcleos de Integridade e Compliance Setoriais", "Fim", 0, "072220", 0],
+["FUNDEPAR", "DP", "Presidência", "Meio", 0, "091202", 0],
+["FUNDEPAR", "UL", "Unidade de Licitação", "Meio", 0, "091214", 0],
+["FUNDEPAR", "DIAF", "Diretoria Administrativo-Financeira", "Meio", 0, "091215", 0],
+["FUNDEPAR", "GAB", "Gabinete da Presidência", "Meio", 0, "091303", 0],
+["FUNDEPAR", "UNIC", "Unidade de Integridade e Compliance", "Meio", 0, "091309", 0],
+["FUNDEPAR", "DARH", "Departamento de Administração e Recursos Humanos", "Meio", 0, "091316", 0],
+["FUNDEPAR", "DFO", "Departamento Financeiro e Orçamentário", "Meio", 0, "091321", 0],
+["FUNDEPAR", "ATA", "Assessoria Técnico-Administrativa do Gabinete da Presidência", "Meio", 0, "091404", 0],
+["FUNDEPAR", "AT", "Assessoria Técnica", "Meio", 0, "091405", 0],
+["FUNDEPAR", "AP", "Assessoria de Projetos", "Meio", 0, "091406", 0],
+["FUNDEPAR", "CG", "Chefia de Gabinete", "Meio", 0, "091407", 0],
+["FUNDEPAR", "ASCOM", "Assessoria de Comunicação", "Meio", 0, "091408", 0],
+["FUNDEPAR", "CI", "Controle Interno", "Meio", 0, "091410", 0],
+["FUNDEPAR", "COM", "Compliance", "Meio", 0, "091411", 0],
+["FUNDEPAR", "OUV", "Ouvidoria", "Meio", 0, "091412", 0],
+["FUNDEPAR", "TRP", "Transparência", "Meio", 0, "091413", 0],
+["FUNDEPAR", "DVTI", "Divisão de Tecnologia da Informação", "Meio", 0, "091417", 0],
+["FUNDEPAR", "DVMS", "Divisão de Manutenção e Serviços", "Meio", 1, "091418", 0],
+["FUNDEPAR", "DVGP", "Divisão de Gestão de Patrimônio", "Meio", 0, "091419", 0],
+["FUNDEPAR", "DVRH", "Divisão de Recursos Humanos", "Meio", 0, "091420", 0],
+["FUNDEPAR", "DVO", "Divisão Orçamentária", "Meio", 0, "091422", 0],
+["FUNDEPAR", "DVPDDE", "Divisão do Programa Dinheiro Direto na Escola", "Meio", 1, "091423", 1],
+["FUNDEPAR", "DVFR", "Divisão do Programa Fundo Rotativo", "Meio", 1, "091424", 1],
+["FUNDEPAR", "DVFIN", "Divisão Financeira", "Meio", 0, "091425", 0],
+["FUNDEPAR", "DVCC", "Divisão de Convênios e Contabilidade", "Meio", 1, "091426", 0],
+["FUNDEPAR", "DITE", "Diretoria Técnica de Engenharia", "Fim", 1, "092238", 1],
+["FUNDEPAR", "DMS", "Departamento de Materiais e Suprimento Escolar", "Fim", 1, "092327", 1],
+["FUNDEPAR", "DNA", "Departamento de Nutrição e Alimentação Escolar", "Fim", 1, "092332", 1],
+["FUNDEPAR", "DTE", "Departamento de Transporte Escolar", "Fim", 1, "092337", 1],
+["FUNDEPAR", "DPO", "Departamento de Projetos e Orçamentos", "Fim", 1, "092339", 1],
+["FUNDEPAR", "DOF", "Departamento de Obras e Fiscalização", "Fim", 1, "092342", 1],
+["FUNDEPAR", "DVPM", "Divisão de Planejamento de Materiais", "Fim", 1, "092428", 1],
+["FUNDEPAR", "DVCM", "Divisão de Controle de Materiais", "Fim", 1, "092429", 1],
+["FUNDEPAR", "DVCO", "Divisão de Contratações", "Fim", 1, "092430", 1],
+["FUNDEPAR", "DVRP", "Divisão de Registros e Publicações", "Fim", 1, "092431", 1],
+["FUNDEPAR", "DVPA", "Divisão de Planejamento de Alimentação Escolar", "Fim", 1, "092433", 1],
+["FUNDEPAR", "DVTA", "Divisão Técnica de Alimentação Escolar", "Fim", 1, "092434", 1],
+["FUNDEPAR", "DVLM", "Divisão de Logística  e Monitoramento de Alimentação Escolar", "Fim", 1, "092435", 1],
+["FUNDEPAR", "DVEC", "Divisão de Execução e Controle", "Fim", 1, "092436", 1],
+["FUNDEPAR", "DVPO", "Divisão de Planejamento e Orçamentação de Obras e Serviços de Engenharia", "Fim", 1, "092440", 1],
+["FUNDEPAR", "DVPR", "Divisão de Projetos", "Fim", 1, "092441", 1],
+["FUNDEPAR", "DVCE", "Divisão de Contratos de Engenharia", "Fim", 1, "092443", 1],
+["FUNDEPAR", "DVFO", "Divisão de Fiscalização de Obras", "Fim", 1, "092444", 1],
+["FUNDEPAR", "DVPE", "Divisão de Programas e Projetos Especiais", "Fim", 3, "092445", 1],
+["IPARDES", "DP", "Diretor Presidente", "Meio", 0, "101202", 0],
+["IPARDES", "DAF", "Diretoria Administrativo-Financeira", "Meio", 0, "101206", 0],
+["IPARDES", "GAB", "Gabinete do Diretor-Presidente", "Meio", 0, "101303", 0],
+["IPARDES", "UIC", "Unidade de Integridade e Compliance", "Meio", 0, "101304", 0],
+["IPARDES", "AT", "Assessoria Técnica", "Meio", 0, "101305", 0],
+["IPARDES", "DAD", "Departamento de Administração", "Meio", 0, "101307", 0],
+["IPARDES", "DRH", "Departamento de Recursos Humanos", "Meio", 0, "101308", 0],
+["IPARDES", "DIF", "Departamento Financeiro", "Meio", 0, "101309", 0],
+["IPARDES", "DPE", "Diretoria de Pesquisa", "Fim", 3, "102210", 1],
+["IPARDES", "DES", "Diretoria de Estatística", "Fim", 1, "102214", 1],
+["IPARDES", "DAP", "Departamento de Avaliação de Políticas Públicas", "Fim", 3, "102311", 1],
+["IPARDES", "DEA", "Departamento de Estudos Econômicos e Ambientais", "Fim", 3, "102312", 1],
+["IPARDES", "DPS", "Departamento de Estudos Populacionais e Sociais", "Fim", 3, "102313", 1],
+["IPARDES", "DGD", "Departamento de Gestão de Dados", "Fim", 1, "102315", 1],
+["IPARDES", "DIP", "Departamento de Indicadores Periódicos", "Fim", 1, "102316", 1],
+["IPARDES", "DMQ", "Departamento de Métodos Quantitativos", "Fim", 3, "102317", 1],
+["SEAP", "CPPA", "Comissão Permanente de Processos Administrativos", "Meio", 1, "", 1],
+["SEAP", "UTGP", "Unidade Técnica de Gerenciamento de Projetos e Processos", "Meio", 3, "", 1],
+["SEAP", "GS", "Gabinete do Secretário", "Meio", 0, "011202", 0],
+["SEAP", "AT", "Assessoria Técnica", "Meio", 0, "011203", 0],
+["SEAP", "DG", "Diretor Geral", "Meio", 0, "011204", 0],
+["SEAP", "NAS", "Núcleo Administrativo Setorial", "Meio", 0, "011205", 0],
+["SEAP", "NRHS", "Núcleo de Recursos Humanos Setorial", "Meio", 0, "011206", 0],
+["SEAP", "NFS", "Núcleo Fazendário Setorial", "Meio", 0, "011207", 0],
+["SEAP", "NPS", "Núcleo de Planejamento Setorial", "Meio", 0, "011208", 0],
+["SEAP", "NICS", "Núcleo de Integridade e Compliance Setorial", "Meio", 0, "011209", 0],
+["SEAP", "NCS", "Núcleo de Comunicação Setorial", "Meio", 0, "011210", 0],
+["SEAP", "DGA", "Divisão de Gestão de Atas e Adesões", "Fim", 1, "", 1],
+["SEAP", "DLOG", "Divisão de Sistema em Logística para Contratações Públicas", "Fim", 1, "", 1],
+["SEAP", "DSO", "Divisão de Saúde Ocupacional", "Fim", 1, "", 1],
+["SEAP", "DOCS", "Diretoria de Operacionalização para Contratações", "Fim", 1, "", 1],
+["SEAP", "DTIN", "Departamento de Tecnologia da Informação e de Núcleos Administrativos Setoriais", "Fim", 1, "", 1],
+["SEAP", "DRA", "Divisão de Cadastro, Regularização e Avaliação de Bens", "Fim", 1, "", 1],
+["SEAP", "DCAT", "Divisão de Padronização e Catalogação para Contratações Públicas", "Fim", 1, "", 1],
+["SEAP", "DCC", "Divisão da Central de Contratos", "Fim", 1, "", 1],
+["SEAP", "DRL", "Divisão de Remanejamento e Leilão", "Fim", 1, "", 1],
+["SEAP", "DGIS", "Divisão de Gestão e Integração de Sistemas", "Fim", 1, "", 1],
+["SEAP", "DAM", "Divisão de Abastecimento e Manutenção", "Fim", 1, "", 1],
+["SEAP", "DGA", "Divisão de Gestão de Ativos Imobiliários e Alienações", "Fim", 1, "", 1],
+["SEAP", "DPG", "Divisão de Planejamento e Gestão", "Fim", 1, "", 1],
+["SEAP", "DGF", "Divisão de Gestão de Folha de Pagamento", "Fim", 1, "", 1],
+["SEAP", "UGP/DFT", "Unidade Gestora do Projeto Dimensionamento da Força de Trabalho", "Fim", 3, "", 1],
+["SEAP", "DGPS", "Diretoria de Gestão de Pessoas, Previdência e Saúde do Servidor", "Fim", 1, "", 1],
+["SEAP", "DPDT", "Diretoria de Gestão Patrimonial, Documental e de Transporte", "Fim", 1, "", 1],
+["SEAP", "DEAP", "Departamento do Arquivo Público", "Fim", 1, "012211", 1],
+["SEAP", "EGP", "Escola de Gestão do Paraná", "Fim", 1, "012212", 0],
+["SEAP", "DECON", "Departamento de Logística para Contratações Públicas", "Fim", 1, "012213", 1],
+["SEAP", "DPE", "Departamento do Patrimônio", "Fim", 1, "012217", 1],
+["SEAP", "DRH", "Departamento de Recursos Humanos e Previdência", "Fim", 1, "012221", 1],
+["SEAP", "DSS", "Departamento de Saúde do Servidor", "Fim", 1, "012228", 1],
+["SEAP", "DETO", "Departamento de Gestão do Transporte Oficial", "Fim", 1, "012231", 1],
+["SEAP", "DOS", "Departamento de Operações e Serviços", "Fim", 1, "012237", 1],
+["SEAP", "DP", "Divisão de Planejamento", "Fim", 1, "012314", 1],
+["SEAP", "DL", "Divisão de Licitação", "Fim", 1, "012315", 1],
+["SEAP", "DCSA", "Divisão de Cargos e Salários", "Fim", 1, "012323", 1],
+["SEAP", "DSRH", "Divisão de Recrutamento e Seleção de RH", "Fim", 1, "012324", 1],
+["SEAP", "DIRH", "Divisão de Gestão da Informação de RH", "Fim", 1, "012325", 1],
+["SEAP", "DSF", "Divisão de Seguridade Funcional", "Fim", 1, "012326", 1],
+["SEAP", "DE", "Divisão de Estágio", "Fim", 1, "012327", 1],
+["SEAP", "DAS", "Divisão de Assistência à Saúde", "Fim", 1, "012329", 1],
+["SEAP", "DPM", "Divisão de Perícia Médica", "Fim", 1, "012330", 1],
+["SEAP", "DVD", "Divisão de Viagens Oficiais", "Fim", 1, "012332", 1],
+["SEAP", "DD", "Divisão de Documentação", "Fim", 1, "012333", 1],
+["SEAP", "DCA", "Divisão de Coordenação Administrativa", "Fim", 1, "012338", 1],
+["SEAP", "DTIC", "Divisão de TI, Comunicação e Sistemas", "Fim", 1, "012339", 1],
+["SEAP", "DGC", "Divisão de Gestão de Contratos", "Fim", 1, "012340", 1],
+["SEED", "GS", "Gabinete do Secretário", "Meio", 1, "", null],
+["SEED", "AT", "Assessoria Técnica", "Meio", 1, "", null],
+["SEED", "DG", "Diretor Geral", "Meio", 3, "", null],
+["SEED", "NPS", "Núcleo de Planejamento Setorial", "Meio", 0, "", null],
+["SEED", "NICS", "Núcleo de Integridade e Compliance Setorial", "Meio", 0, "", null],
+["SEED", "NCS", "Núcleo de Comunicação Setorial", "Meio", 0, "", null],
+["SEED", "NAS", "Núcleo Administrativo Setorial", "Meio", 0, "", null],
+["SEED", "NRHS", "Núcleo de Recursos Humanos Setorial", "Meio", 0, "", null],
+["SEED", "NFS", "Núcleo Fazendário Setorial", "Meio", 0, "", null],
+["SEED", "DEDUC", "Diretoria de Educação", "Fim", 3, "", null],
+["SEED", "DAP", "Departamento de Acompanhamento Pedagógico", "Fim", 1, "", null],
+["SEED", "DDC", "Departamento de Desenvolvimento Curricular", "Fim", 1, "", null],
+["SEED", "DEIN", "Departamento de Educação Inclusiva", "Fim", 1, "", null],
+["SEED", "DEPEJA", "Departamento de Educação Profissional e EJA", "Fim", 1, "", null],
+["SEED", "DPEB", "Departamento de Programas para a Educação Básica", "Fim", 1, "", null],
+["SEED", "DPGE", "Diretoria de Planejamento e Gestão Escolar", "Fim", 3, "", null],
+["SEED", "DGE", "Departamento de Gestão Escolar", "Fim", 1, "", null],
+["SEED", "DGDE", "Departamento de Governança de Dados Educacionais", "Fim", 1, "", null],
+["SEED", "DNE", "Departamento de Normatização Escolar", "Fim", 2, "", null],
+["SEED", "DPR", "Departamento de Planejamento da Rede", "Fim", 1, "", null],
+["SEED", "DTI", "Diretoria de Tecnologia e Inovação Educacional", "Inovação", 3, "", null],
+["SEED", "DIE", "Departamento de Inovação Educacional", "Inovação", 3, "", null],
+["SEED", "DTEC", "Departamento de Tecnologia da Informação", "Inovação", 3, "", null],
+["SEED", "NREs", "Núcleos Regionais de Educação", "Fim", 0, "", null],
+["SEJU", "AT", "Assessoria Técnica", "Meio", 0, "W320302", 0],
+["SEJU", "DG", "Diretor Geral", "Meio", 0, "W320401", 0],
+["SEJU", "NICS", "Núcleo de Integridade e Compliance Setorial", "Meio", 0, "W320511", 0],
+["SEJU", "UTEA", "Unidade Técnica de Engenharia e Arquitetura", "Meio", 1, "W320514", 1],
+["SEJU", "NPS", "Núcleo de Planejamento Setorial", "Meio", 0, "W320516", 0],
+["SEJU", "NFS", "Núcleo Fazendário Setorial", "Meio", 0, "W320518", 0],
+["SEJU", "NRHS", "Núcleo de Recursos Humanos Setorial", "Meio", 0, "W320519", 0],
+["SEJU", "NAS", "Núcleo Administrativo Setorial", "Meio", 0, "W320521", 0],
+["SEJU", "NCS", "Núcleo de Comunicação Setorial", "Meio", 0, "W320523", 0],
+["SEJU", "GS", "Gabinete do Secretário", "Meio", 0, "W320526", 0],
+["SEJU", "UTCL", "Unidade Técnica de Contratos e Licitações", "Meio", 0, "W320534", 0],
+["SEJU", "UTEC", "Unidade Técnica de Sistemas de Informação e Tecnologia", "Meio", 0, "W320538", 0],
+["SEJU", "UTPA", "Unidade Técnica do Projeto Paraná em Ação", "Meio", 1, "W320548", 1],
+["SEJU", "UTSC", "Unidade Técnica de Suporte aos Colegiados", "Meio", 1, "W320550", 1],
+["SEJU", "UTCG", "Unidade Técnica de Corregedoria", "Meio", 0, "W320552", 0],
+["SEJU", "DJUS", "Diretoria de Justiça", "Fim", 1, "W320530", 1],
+["SEJU", "DCDH", "Diretoria de Cidadania e Direitos Humanos", "Fim", 1, "W320532", 1],
+["SEJU", "PROCON/PR", "Coordenação Estadual de Defesa dos Direitos do Consumidor", "Fim", 1, "W320536", 1],
+["SEJU", "CPJ", "Coordenação de Proteção e Justiça", "Fim", 1, "W320540", 1],
+["SEJU", "COCID", "Coordenação de Cidadania", "Fim", 1, "W320542", 1],
+["SEJU", "CODHU", "Coordenação de Direitos Humanos", "Fim", 1, "W320544", 1],
+["SEJU", "ESEDH", "Escola de Educação em Direitos Humanos", "Fim", 1, "W320546", 0],
+["SEJU", "CGS", "Coordenação de Gestão do Sistema Socioeducativo", "Fim", 1, "W320604", 1],
+["SEPL", "GS", "Gabinete do Secretário", "Meio", 0, "041202", 0],
+["SEPL", "AT", "Assessoria Técnica", "Meio", 0, "041203", 0],
+["SEPL", "DG", "Diretoria-Geral", "Meio", 0, "041204", 0],
+["SEPL", "NPS", "Núcleo de Planejamento Setorial", "Meio", 0, "041207", 0],
+["SEPL", "NAS", "Núcleo Administrativo Setorial", "Meio", 0, "041208", 0],
+["SEPL", "NICS", "Núcleo de Integridade e Compliance Setorial", "Meio", 0, "041209", 0],
+["SEPL", "NRHS", "Núcleo de Recursos Humanos Setorial", "Meio", 0, "041210", 0],
+["SEPL", "NFS", "Núcleo Fazendário Setorial", "Meio", 0, "041211", 0],
+["SEPL", "NCS", "Núcleo de Comunicação Setorial", "Meio", 0, "041212", 0],
+["SEPL", "UTEC", "Unidade Técnica de Sistemas de Informação e Tecnologia", "Meio", 0, "041305", 0],
+["SEPL", "UGPAR", "Unidade Gestora do Programa de Parcerias do Paraná", "Meio", 3, "041306", 1],
+["SEPL", "DAG", "Diretoria de Aperfeiçoamento da Gestão Governamental", "Fim", 3, "042213", 1],
+["SEPL", "CCR", "Coordenação de Captação de Recursos", "Fim", 1, "042214", 1],
+["SEPL", "CDT", "Coordenação de Desenvolvimento Territorial Integrado", "Fim", 3, "042215", 1],
+["SEPL", "DDI", "Diretoria de Desenvolvimento Institucional", "Fim", 3, "042216", 1],
+["SEPL", "CMI", "Coordenação de Modernização Institucional", "Fim", 3, "042217", 1],
+["SEPL", "CMA", "Coordenação de Monitoramento e Avaliação", "Fim", 1, "042218", 1],
+["SEPL", "CPC", "Coordenação do Plano de Contratações Anual", "Fim", 1, "042219", 1],
+["SEPL", "CNP", "Coordenação dos Núcleos de Planejamento Setorial", "Fim", 1, "042220", 1],
+["SEPL", "NPS", "Núcleos de Planejamento Setoriais", "Fim", 0, "042221", 0],
+["SESA", "GS", "Gabinete do Secretário", "Meio", 1, "", null],
+["SESA", "AT", "Assessoria Técnica", "Meio", 1, "", null],
+["SESA", "DG", "Diretor Geral", "Meio", 3, "", null],
+["SESA", "NAS", "Núcleo Administrativo Setorial", "Meio", 0, "", null],
+["SESA", "NFS", "Núcleo Fazendário Setorial", "Meio", 0, "", null],
+["SESA", "NRHS", "Núcleo de Recursos Humanos Setorial", "Meio", 0, "", null],
+["SESA", "NICS", "Núcleo de Integridade e Compliance Setorial", "Meio", 0, "", null],
+["SESA", "NPS", "Núcleo de Planejamento Setorial", "Meio", 0, "", null],
+["SESA", "NCS", "Núcleo de Comunicação Setorial", "Meio", 0, "", null],
+["SESA", "DAD", "Diretoria Administrativa", "Meio", 3, "", null],
+["SESA", "COGV", "Coordenação de Governança em Aquisição", "Meio", 0, "", null],
+["SESA", "COMP", "Coordenação de Material e Patrimônio", "Meio", 0, "", null],
+["SESA", "COEN", "Coordenação de Engenharia", "Meio", 1, "", null],
+["SESA", "OUV", "Ouvidoria Geral da Saúde", "Fim", 0, "", null],
+["SESA", "DAV", "Diretoria de Atenção e Vigilância em Saúde", "Fim", 3, "", null],
+["SESA", "COVE", "Coordenação de Vigilância Epidemiológica", "Fim", 2, "", null],
+["SESA", "CVIB", "Coordenação de Vigilância Sanitária", "Fim", 2, "", null],
+["SESA", "CVIA", "Coordenação de Vigilância Ambiental", "Fim", 2, "", null],
+["SESA", "CPRO", "Coordenação de Promoção da Saúde", "Fim", 1, "", null],
+["SESA", "CRAS", "Coordenação da Rede de Atenção à Saúde", "Fim", 1, "", null],
+["SESA", "DAR", "Diretoria de Articulação Regional", "Fim", 3, "", null],
+["SESA", "DES", "Diretoria Executiva de Saúde", "Fim", 3, "", null],
+["SESA", "ESPP", "Escola de Saúde Pública do Paraná", "Fim", 1, "", null],
+["SESA", "CFRH", "Centro Formador de Recursos Humanos", "Fim", 1, "", null],
+["SESA", "COAF", "Coordenação de Assistência Farmacêutica", "Fim", 2, "", null],
+["SESA", "FUNSAÚDE", "Diretoria Executiva do Fundo Estadual de Saúde", "Fim", 3, "", null],
+["SESA", "DGS", "Diretoria de Gestão em Saúde", "Fim", 3, "", null],
+["SESA", "CCCS", "Coordenação de Contratualização de Cuidados em Saúde", "Fim", 1, "", null],
+["SESA", "CRASS", "Coordenação de Regulação de Acesso aos Serviços de Saúde", "Fim", 2, "", null],
+["SESA", "CAAM", "Coordenação de Auditoria, Avaliação e Monitoramento", "Fim", 1, "", null],
+["SESA", "CSET", "Coordenação do Sistema Estadual de Transplante", "Fim", 2, "", null],
+["SESA", "CGSP", "Coordenação de Gestão de Serviços Próprios", "Fim", 2, "", null],
+["SESA", "RS", "Regionais de Saúde", "Fim", 0, "", null],
+["SETU", "GS", "Gabinete do Secretário", "Meio", 0, "061202", 0],
+["SETU", "DG", "Diretoria Geral", "Meio", 0, "061204", 0],
+["SETU", "NAS", "Núcleo Administrativo Setorial", "Meio", 0, "061205", 0],
+["SETU", "NFS", "Núcleo Fazendário Setorial", "Meio", 0, "061206", 0],
+["SETU", "NRHS", "Núcleo de Recursos Humanos Setorial", "Meio", 0, "061207", 0],
+["SETU", "NICS", "Núcleo de Integridade e Compliance Setorial", "Meio", 0, "061208", 0],
+["SETU", "NCS", "Núcleo de Comunicação Setorial", "Meio", 0, "061209", 0],
+["SETU", "NPS", "Núcleo de Planejamento Setorial", "Meio", 0, "061210", 0],
+["SETU", "DGSQ", "Diretoria de Gestão, Sustentabilidade e Qualificação do Turismo", "Fim", 1, "062211", 1],
+["SETU", "DPIT", "Diretoria de Promoção, Inovação e Inteligência Turística", "Fim", 3, "062214", 1],
+["SETU", "NRTUs", "Núcleos Regionais de Turismo", "Fim", 0, "062217", 2],
+["SETU", "CGST", "Coordenação de Gestão e Sustentabilidade do Turismo", "Fim", 1, "062312", 1],
+["SETU", "CQT", "Coordenação de Qualificação do Turismo", "Fim", 1, "062313", 1],
+["SETU", "CPIT", "Coordenação de Promoção e Inovação Turística", "Fim", 3, "062315", 1],
+["SETU", "CIET", "Coordenação de Inteligência e Estratégia Turística", "Fim", 3, "062316", 1],
+["SETU", "NRTU-DV", "Núcleo Regional de Turismo – Dois Vizinhos", "Fim", 0, "062318", 2],
+["SETU", "NRTU-FI", "Núcleo Regional de Turismo – Foz do Iguaçu", "Fim", 0, "062319", 2],
+["SETU", "NRTU-IV", "Núcleo Regional de Turismo – Ivaiporã", "Fim", 0, "062320", 2],
+["SETU", "NRTU-JC", "Núcleo Regional de Turismo – Jacarezinho", "Fim", 0, "062321", 2],
+["SETU", "NRTU-LO", "Núcleo Regional de Turismo – Loanda", "Fim", 0, "062322", 2],
+["SETU", "NRTU-PNG", "Núcleo Regional de Turismo – Paranaguá", "Fim", 0, "062323", 2],
+["SETU", "NRTU-PG", "Núcleo Regional de Turismo – Ponta Grossa", "Fim", 0, "062324", 2],
+["SETU", "NRTU-UM", "Núcleo Regional de Turismo – Umuarama", "Fim", 0, "062325", 2]
 ];
 
 
@@ -1309,12 +1369,18 @@ function dftBuildSeed() {
     id: 'u' + i,
     orgao: r[0], sigla: r[1], nome: r[2], funcao: r[3],
     metodo: DFT_METODOS[r[4]],
+    codigo: r[5],                                    // código da unidade no Anexo I
+    replicabilidade: r[6] == null ? '' : DFT_REPLICABILIDADE[r[6]],
     codigoPares: r[1],
     codigoUnidade: 'W' + String(210000 + i * 7 + 13).padStart(6, '0'),
     municipio: MUNICIPIOS_PR[i % MUNICIPIOS_PR.length],
     uf: 'PR'
   }));
-  const orgaos = [...new Set(unidades.map(u => u.orgao))].map(o => ({ id: o, nome: o }));
+  const metaOrgao = Object.fromEntries(DFT_ORGAOS_RAW.map(o => [o[0], o]));
+  const orgaos = [...new Set(unidades.map(u => u.orgao))].map(o => {
+    const m = metaOrgao[o] || [];
+    return { id: o, nome: o, tipo: m[1] || '', eixo: m[2] || '', situacao: m[3] || '' };
+  });
   const U = (orgao, sigla) => unidades.find(u => u.orgao === orgao && u.sigla === sigla);
 
   // ---------- Cargos (catálogo) ----------
@@ -1874,7 +1940,7 @@ function dftBuildSeed() {
   }];
 
   return {
-    versao: 13,
+    versao: 14,
     anoReferencia: 2026,
     itpFixoMeio: 81.5, // % — referência MGI (área meio)
     perfilId: 'seap',
@@ -1933,7 +1999,7 @@ function dftBuildSeed() {
 
 const Store = (() => {
   const CHAVE = 'dft-parana-v1';
-  const VERSAO = 13;
+  const VERSAO = 14;   // 14: unidades do Anexo I (28/08/2026) + metadados de órgão
   let state = null;
   // contador de revisão: quem faz cache de cálculo pesado (Plano.linhasBase)
   // compara com ele para saber se o estado mudou desde a última vez.
@@ -7248,17 +7314,41 @@ function iaParseCSV(txt) {
 }
 
 // SheetJS só é baixado quando um .xlsx aparece — o resto do sistema segue offline
+// Carrega um script com prazo: sem o prazo, uma rede que engole a requisição em
+// vez de recusá-la deixa a promessa pendente para sempre — e a tela presa no
+// "lendo a planilha".
+function iaCarregaScript(src, ms = 20000) {
+  return new Promise((ok, err) => {
+    const el = document.createElement('script');
+    let encerrado = false;
+    const fim = (fn, arg) => { if (encerrado) return; encerrado = true; clearTimeout(t); fn(arg); };
+    const t = setTimeout(() => { el.remove(); fim(err, new Error('tempo esgotado em ' + src)); }, ms);
+    el.src = src;
+    el.onload = () => fim(ok);
+    el.onerror = () => { el.remove(); fim(err, new Error('não carregou ' + src)); };
+    document.head.appendChild(el);
+  });
+}
+
+// O leitor de planilhas vem de uma cópia local, quando houver uma ao lado do
+// index.html, e só então do CDN. É o que permite usar xlsx em rede que bloqueia
+// CDN: basta baixar o arquivo uma vez e deixá-lo na pasta.
 function iaCarregaSheetJS() {
   if (window.XLSX) return Promise.resolve(window.XLSX);
   if (window._iaSheetJS) return window._iaSheetJS;
-  window._iaSheetJS = new Promise((ok, err) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-    s.onload = () => ok(window.XLSX);
-    s.onerror = () => err(new Error('Não foi possível baixar o leitor de planilhas. ' +
-      'Verifique a conexão ou salve o e-Protocolo como CSV.'));
-    document.head.appendChild(s);
-  });
+  const fontes = ['xlsx.full.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'];
+  window._iaSheetJS = fontes
+    .reduce((p, src) => p.catch(() => iaCarregaScript(src)), Promise.reject(new Error('início')))
+    .then(() => {
+      if (!window.XLSX) throw new Error('sem XLSX');
+      return window.XLSX;
+    })
+    .catch(() => {
+      window._iaSheetJS = null;   // permite nova tentativa
+      throw new Error('Não foi possível carregar o leitor de planilhas. Salve o arquivo como CSV, ' +
+        'ou baixe xlsx.full.min.js e deixe-o na mesma pasta do DFT.');
+    });
   return window._iaSheetJS;
 }
 
@@ -8446,16 +8536,28 @@ function telaOrgaos() {
         <span><strong>${us.length}</strong> unidades</span>
         <span><strong>${fmtN(servidores)}</strong> servidores</span>
       </div>
-      <div class="badges">${metodos.map(m => `<span class="badge mini badge-azul">${E(METODO_MINI[m])}</span>`).join('')}</div>
+      <div class="badges">
+        ${/pendente/i.test(o.situacao || '') ? '<span class="badge mini badge-fila" title="O órgão ainda não devolveu o instrumento de taxonomia — as unidades vêm da relação prévia e podem mudar">relação prévia</span>' : ''}
+        ${metodos.map(m => `<span class="badge mini badge-azul">${E(METODO_MINI[m])}</span>`).join('')}</div>
     </button>`;
   }).join('');
   app().innerHTML = `
   ${cabecalhoPagina('Órgãos do Estado',
     'Selecione um órgão para ver as unidades vinculadas e o método de dimensionamento de cada uma.', null, 'Órgãos')}
-  ${p.id === 'seap' ? `<div class="acoes"><button class="btn btn-sec" id="btn-novo-orgao">+ Novo órgão</button></div>` : ''}
+  ${p.id === 'seap' ? `<div class="acoes">
+    <button class="btn btn-sec" id="btn-novo-orgao">+ Novo órgão</button>
+    <button class="btn btn-sec" id="btn-importar">Importar planilha de unidades</button>
+  </div>` : ''}
+  <div id="painel-import"></div>
   <div class="grid-cards">${cards}</div>`;
   app().querySelectorAll('[data-orgao]').forEach(b =>
     b.addEventListener('click', () => navega('#/orgaos/' + encodeURIComponent(b.dataset.orgao))));
+  const btnImp = document.getElementById('btn-importar');
+  if (btnImp) btnImp.addEventListener('click', () => {
+    if (document.getElementById('imp-drop')) { impLimpa(); painelImportacao(); document.getElementById('painel-import').innerHTML = ''; return; }
+    painelImportacao();
+    document.getElementById('painel-import').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
   const novo = document.getElementById('btn-novo-orgao');
   if (novo) novo.addEventListener('click', () => {
     const nome = prompt('Sigla do novo órgão (ex.: SEFA):');
@@ -8620,23 +8722,404 @@ function formUnidade(orgaoId, unidadeId) {
     const ents = s.entregas.filter(x => x.unidadeId === unidadeId);
     if (!confirm(`Excluir a unidade ${u.sigla}? Servidores e lançamentos vinculados serão removidos.` +
       (ents.length ? `\n\nAs ${ents.length} entrega(s) da unidade serão PRESERVADAS no acervo de entregas — de lá você pode vinculá-las a outra unidade.` : ''))) return;
-    const hoje = new Date().toISOString().slice(0, 10);
-    ents.forEach(e => {
-      e.vinculos = e.vinculos || [];
-      e.vinculos.push({ de: unidadeId, deSigla: u.sigla, deOrgao: u.orgao, para: null, data: hoje, motivo: 'unidade extinta' });
-      e.unidadeId = null;
-    });
-    // os lançamentos das entregas preservadas continuam gravados (ficam inertes até
-    // a entrega ser vinculada a uma nova unidade, quando o histórico é migrado junto)
-    const idsEnt = new Set(ents.map(e => e.id));
-    s.unidades = s.unidades.filter(x => x.id !== unidadeId);
-    s.servidores = s.servidores.filter(x => x.unidadeId !== unidadeId);
-    s.producao.forEach(p => { if (p.unidadeId === unidadeId) p.itens = p.itens.filter(i => idsEnt.has(i.entregaId)); });
-    s.producao = s.producao.filter(x => x.unidadeId !== unidadeId || x.itens.length);
-    s.historico = s.historico.filter(x => x.unidadeId !== unidadeId || idsEnt.has(x.entregaId));
+    removeUnidadeDoEstado(s, u, 'unidade extinta');
     Store.salvar(); telaOrgao(orgaoId);
   });
 }
+
+// Tira a unidade do estado preservando as entregas: elas vão para o acervo, com
+// o vínculo anterior registrado, e os lançamentos continuam gravados — ficam
+// inertes até a entrega ser vinculada a outra unidade. Servidores e produção
+// próprios da unidade saem junto. Usada pela exclusão manual e pela importação.
+function removeUnidadeDoEstado(s, u, motivo) {
+  const uid = u.id;
+  const ents = s.entregas.filter(x => x.unidadeId === uid);
+  const hoje = new Date().toISOString().slice(0, 10);
+  ents.forEach(e => {
+    e.vinculos = e.vinculos || [];
+    e.vinculos.push({ de: uid, deSigla: u.sigla, deOrgao: u.orgao, para: null, data: hoje, motivo });
+    e.unidadeId = null;
+  });
+  const idsEnt = new Set(ents.map(e => e.id));
+  s.unidades = s.unidades.filter(x => x.id !== uid);
+  s.servidores = s.servidores.filter(x => x.unidadeId !== uid);
+  s.producao.forEach(p => { if (p.unidadeId === uid) p.itens = p.itens.filter(i => idsEnt.has(i.entregaId)); });
+  s.producao = s.producao.filter(x => x.unidadeId !== uid || x.itens.length);
+  s.historico = s.historico.filter(x => x.unidadeId !== uid || idsEnt.has(x.entregaId));
+  return ents.length;
+}
+
+/* ============================================================
+   DFT — Importação de unidades por planilha
+   Lê o Anexo I (ou qualquer planilha com as mesmas colunas) e gera os órgãos e
+   as unidades a partir dele. Duas decisões explicam o resto do módulo:
+
+   · o cabeçalho é PROCURADO nas primeiras linhas, porque o Anexo I traz título
+     e notas antes dele, e as colunas são reconhecidas pelo NOME, não pela
+     posição — a planilha pode vir com colunas a mais, a menos ou fora de ordem;
+   · nada é gravado antes da prévia. A tela mostra o que vai ser criado,
+     atualizado e o que ficou de fora, e só então a importação é aplicada.
+   ============================================================ */
+
+const IMP = {
+  arquivo: '', aba: '', linhas: null, cab: -1, mapa: null,
+  previa: null, erro: '', ocupado: false, remover: false
+};
+
+const impNorm = t => String(t == null ? '' : t)
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+// O Anexo I separa "Razão por Direcionador" de "Medição de Esforço por
+// Atividade". O motor de cálculo do DFT trata as duas sob um método só, então
+// ambas caem em DFT_METODOS[1] — é o mesmo cálculo por trás.
+const IMP_ALIAS_METODO = {
+  'comparacao entre pares': 0,
+  'pares': 0,
+  'razao por direcionador': 1,
+  'medicao de esforco por atividade': 1,
+  'direcionador historico ou esforco por entrega': 1,
+  'esforco por entrega': 1,
+  'direcionador historico': 1,
+  'direcionador referencial/normativo': 2,
+  'referencial/normativo': 2,
+  'capacidade e consenso tecnico': 3
+};
+
+// nome da coluna → campo. Cada campo é reivindicado pela coluna mais à esquerda
+// que casar, o que evita, por exemplo, que "Origem da indicação do método"
+// tome o lugar de "Método de dimensionamento indicado".
+const IMP_COLUNAS = [
+  ['orgao', /^(orgao|sigla do orgao|entidade)$/],
+  ['codigo', /^codigo/],
+  ['sigla', /^sigla/],
+  ['nome', /(nome.*unidade|unidade dimensionavel|^nome$|^unidade$|^descricao)/],
+  ['funcao', /^(natureza|funcao|meio ?\/ ?fim)/],
+  ['metodo', /metodo/],
+  ['tipo', /^tipo/],
+  ['eixo', /^eixo/],
+  ['replicabilidade', /replicab/]
+];
+
+const IMP_PALAVRA_VAZIA = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'a', 'o', 'em', 'para', 'por', 'ao', 'no', 'na']);
+
+// Quando a planilha não traz sigla, ela sai das iniciais do nome — o mesmo
+// critério usado ao montar o Anexo I no seed.
+function impSiglaDoNome(nome, usadas) {
+  const partes = nome.split(/[\s/-]+/).filter(p => p && !IMP_PALAVRA_VAZIA.has(impNorm(p)));
+  const base = (partes.map(p => p[0]).join('').toUpperCase().slice(0, 6)) || 'UD';
+  let sig = base, n = 2;
+  while (usadas.has(sig)) sig = base + (n++);
+  return sig;
+}
+
+/* ---------- leitura ---------- */
+
+// Devolve [{nome, linhas}] — todas as abas, para que a detecção de cabeçalho
+// possa escolher a que realmente tem a relação de unidades.
+async function impLerArquivo(file) {
+  const nome = file.name.toLowerCase();
+  if (/\.(csv|tsv|txt)$/.test(nome)) {
+    return [{ nome: file.name, linhas: iaParseCSV(await iaLerTexto(file)) }];
+  }
+  const XLSX = await iaCarregaSheetJS();
+  const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+  return wb.SheetNames.map(n => ({
+    nome: n,
+    linhas: XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, blankrows: false, defval: '' })
+      .filter(l => l.some(c => String(c).trim()))
+  }));
+}
+
+// Mapa {campo: índice} de uma linha candidata a cabeçalho, ou null.
+function impMapaColunas(linha) {
+  const mapa = {};
+  linha.forEach((celula, i) => {
+    const t = impNorm(celula);
+    if (!t) return;
+    const par = IMP_COLUNAS.find(([campo, re]) => mapa[campo] == null && re.test(t));
+    if (par) mapa[par[0]] = i;
+  });
+  return (mapa.orgao != null && mapa.nome != null) ? mapa : null;
+}
+
+// Procura, entre as abas, a primeira linha das 20 iniciais que sirva de cabeçalho.
+function impAchaCabecalho(abas) {
+  for (const aba of abas) {
+    for (let i = 0; i < Math.min(20, aba.linhas.length); i++) {
+      const mapa = impMapaColunas(aba.linhas[i]);
+      if (mapa) return { aba: aba.nome, linhas: aba.linhas, cab: i, mapa };
+    }
+  }
+  return null;
+}
+
+/* ---------- prévia ---------- */
+
+// Linhas de totalização não são unidades.
+const IMP_NAO_ORGAO = /^(total|subtotal|participacao|orgao|nota)/;
+
+function impMontaPrevia(s) {
+  const { linhas, cab, mapa } = IMP;
+  const val = (l, campo) => mapa[campo] == null ? ''
+    : String(l[mapa[campo]] == null ? '' : l[mapa[campo]]).trim();
+
+  const registros = [], ignoradas = [];
+  const semMetodo = [], siglasDerivadas = [];
+  const usadasPorOrgao = {};
+
+  const corpo = linhas.slice(cab + 1);
+  corpo.forEach(l => {
+    const o = val(l, 'orgao').toUpperCase(), sg = val(l, 'sigla');
+    if (o && sg) (usadasPorOrgao[o] = usadasPorOrgao[o] || new Set()).add(sg);
+  });
+
+  corpo.forEach(l => {
+    const orgao = val(l, 'orgao').toUpperCase();
+    const nome = val(l, 'nome');
+    if (!orgao || !nome || IMP_NAO_ORGAO.test(impNorm(orgao))) return;
+
+    usadasPorOrgao[orgao] = usadasPorOrgao[orgao] || new Set();
+    let sigla = val(l, 'sigla');
+    if (!sigla) {
+      sigla = impSiglaDoNome(nome, usadasPorOrgao[orgao]);
+      siglasDerivadas.push(`${orgao}/${sigla}`);
+    }
+    usadasPorOrgao[orgao].add(sigla);
+
+    const bruto = val(l, 'metodo');
+    const idx = IMP_ALIAS_METODO[impNorm(bruto)];
+    if (bruto && idx == null) semMetodo.push(bruto);
+
+    const funcao = /^f/i.test(impNorm(val(l, 'funcao'))) ? 'Fim' : 'Meio';
+    registros.push({
+      orgao, sigla, nome, funcao,
+      metodo: idx == null ? null : DFT_METODOS[idx],
+      codigo: val(l, 'codigo'),
+      replicabilidade: val(l, 'replicabilidade'),
+      tipo: val(l, 'tipo'), eixo: val(l, 'eixo')
+    });
+  });
+
+  if (!registros.length) throw new Error('Nenhuma linha de unidade foi reconhecida na planilha.');
+
+  /* --- casamento com o que já existe ---
+     Primeiro pelo código, quando ele é único dos dois lados dentro do órgão;
+     depois por órgão + sigla + nome. Assim uma unidade renomeada na planilha é
+     reconhecida pelo código em vez de virar uma unidade nova. */
+  const conta = (lista, chave) => lista.reduce((m, x) => {
+    const k = chave(x); if (k) m[k] = (m[k] || 0) + 1; return m;
+  }, {});
+  const codPlan = conta(registros, r => r.codigo && r.orgao + '|' + r.codigo);
+  const codEstado = conta(s.unidades, u => u.codigo && u.orgao + '|' + u.codigo);
+  const porNome = {};
+  s.unidades.forEach(u => { porNome[impNorm(u.orgao) + '|' + impNorm(u.sigla) + '|' + impNorm(u.nome)] = u; });
+  const porCodigo = {};
+  s.unidades.forEach(u => { if (u.codigo) porCodigo[u.orgao + '|' + u.codigo] = u; });
+
+  const casada = r => {
+    const k = r.codigo && r.orgao + '|' + r.codigo;
+    if (k && codPlan[k] === 1 && codEstado[k] === 1) return porCodigo[k];
+    return porNome[impNorm(r.orgao) + '|' + impNorm(r.sigla) + '|' + impNorm(r.nome)];
+  };
+
+  const novas = [], atualizadas = [], iguais = [];
+  const vistas = new Set();
+  registros.forEach(r => {
+    const u = casada(r);
+    if (!u) { novas.push(r); return; }
+    vistas.add(u.id);
+    const mudou = u.sigla !== r.sigla || u.nome !== r.nome || u.funcao !== r.funcao ||
+      (r.metodo && u.metodo !== r.metodo) ||
+      (r.codigo && u.codigo !== r.codigo) ||
+      (r.replicabilidade && u.replicabilidade !== r.replicabilidade);
+    (mudou ? atualizadas : iguais).push({ u, r });
+  });
+
+  // Só contam como ausentes as unidades dos órgãos que a planilha cobre: uma
+  // planilha de um órgão só não pode sugerir que os demais sumiram.
+  const orgaosPlanilha = new Set(registros.map(r => r.orgao));
+  const ausentes = s.unidades.filter(u => orgaosPlanilha.has(u.orgao) && !vistas.has(u.id));
+
+  const metaOrgaos = {};
+  registros.forEach(r => {
+    const m = metaOrgaos[r.orgao] = metaOrgaos[r.orgao] || { id: r.orgao, tipo: '', eixo: '', unidades: 0 };
+    m.unidades++;
+    if (r.tipo && !m.tipo) m.tipo = r.tipo;
+    if (r.eixo && !m.eixo) m.eixo = r.eixo;
+  });
+  const orgaos = Object.values(metaOrgaos).sort((a, b) => a.id.localeCompare(b.id));
+
+  return {
+    registros: registros.length, novas, atualizadas, iguais, ausentes, orgaos,
+    orgaosNovos: orgaos.filter(o => !s.orgaos.some(x => x.id === o.id)),
+    semMetodo: [...new Set(semMetodo)], siglasDerivadas, ignoradas
+  };
+}
+
+/* ---------- aplicação ---------- */
+
+function impAplicar(s) {
+  const p = IMP.previa;
+
+  p.orgaos.forEach(o => {
+    const alvo = s.orgaos.find(x => x.id === o.id);
+    if (!alvo) s.orgaos.push({ id: o.id, nome: o.id, tipo: o.tipo, eixo: o.eixo, situacao: '' });
+    else { if (o.tipo) alvo.tipo = o.tipo; if (o.eixo) alvo.eixo = o.eixo; }
+  });
+
+  p.novas.forEach(r => s.unidades.push({
+    id: Store.novoId('u', s.unidades),
+    orgao: r.orgao, sigla: r.sigla, nome: r.nome, funcao: r.funcao,
+    metodo: r.metodo || DFT_METODOS[0],
+    codigo: r.codigo, replicabilidade: r.replicabilidade,
+    codigoPares: r.sigla, uf: 'PR'
+  }));
+
+  p.atualizadas.forEach(({ u, r }) => {
+    // o código de pares acompanha a sigla enquanto for o padrão (a própria
+    // sigla); se foi ajustado à mão para agrupar pares, fica como está
+    if (u.codigoPares === u.sigla) u.codigoPares = r.sigla;
+    u.sigla = r.sigla; u.nome = r.nome; u.funcao = r.funcao;
+    if (r.metodo) u.metodo = r.metodo;
+    if (r.codigo) u.codigo = r.codigo;
+    if (r.replicabilidade) u.replicabilidade = r.replicabilidade;
+  });
+
+  const removidas = IMP.remover ? p.ausentes.length : 0;
+  if (IMP.remover) p.ausentes.forEach(u => removeUnidadeDoEstado(s, u, 'não consta da planilha importada'));
+  Store.salvar();
+  return { criadas: p.novas.length, atualizadas: p.atualizadas.length, removidas, orgaos: p.orgaosNovos.length };
+}
+
+/* ---------- a tela ---------- */
+
+function impLimpa() {
+  Object.assign(IMP, { arquivo: '', aba: '', linhas: null, cab: -1, mapa: null,
+    previa: null, erro: '', ocupado: false, remover: false });
+}
+
+function painelImportacao() {
+  const alvo = document.getElementById('painel-import');
+  if (!alvo) return;
+  const s = st();
+  const p = IMP.previa;
+
+  const resumoArquivo = IMP.arquivo ? `
+    <ul class="ia-arqs">
+      <li class="ia-arq">
+        <span class="badge mini badge-azul">planilha</span>
+        <span class="ia-arq-nome">${E(IMP.arquivo)}</span>
+        <span class="ia-arq-tam">${IMP.aba && IMP.aba !== IMP.arquivo ? 'aba ' + E(IMP.aba) : ''}</span>
+        <button class="btn-x" id="imp-tira" title="Remover">×</button>
+      </li>
+    </ul>` : '';
+
+  const colunas = IMP.mapa ? `<p class="nota-calculo">Colunas reconhecidas:
+    ${Object.keys(IMP.mapa).map(c => `<b>${E(c)}</b>`).join(', ')}.
+    O cabeçalho foi encontrado na linha ${IMP.cab + 1}.</p>` : '';
+
+  const linha = (rot, n, cor) => `<li><span class="badge mini ${cor}">${n}</span> ${rot}</li>`;
+  const avisos = [];
+  if (p && p.semMetodo.length) avisos.push(`Método não reconhecido em: ${p.semMetodo.map(E).join(', ')}.
+    Essas unidades entram com <b>${E(METODO_CURTO[DFT_METODOS[0]])}</b> quando novas, e mantêm o método atual quando já existem.`);
+  if (p && p.siglasDerivadas.length) avisos.push(`Sem sigla na planilha, derivada do nome:
+    ${p.siglasDerivadas.slice(0, 8).map(E).join(', ')}${p.siglasDerivadas.length > 8 ? ` e mais ${p.siglasDerivadas.length - 8}` : ''}.`);
+
+  const previa = p ? `
+    <div class="card card-larga">
+      <h3 class="card-titulo">Prévia — ${fmtN(p.registros)} linhas lidas</h3>
+      <ul class="imp-resumo">
+        ${linha('órgãos na planilha, sendo <b>' + p.orgaosNovos.length + '</b> a criar', p.orgaos.length, 'badge-azul')}
+        ${linha('unidades novas', p.novas.length, 'badge-esforco')}
+        ${linha('unidades a atualizar', p.atualizadas.length, 'badge-azul')}
+        ${linha('unidades já iguais à planilha', p.iguais.length, 'badge-consenso')}
+        ${linha('unidades dos mesmos órgãos que não constam da planilha', p.ausentes.length, p.ausentes.length ? 'badge-fila' : 'badge-consenso')}
+      </ul>
+      ${avisos.map(a => `<p class="nota-calculo">${a}</p>`).join('')}
+      ${p.ausentes.length ? `
+        <label class="check" style="margin-top:10px"><input type="checkbox" id="imp-remover" ${IMP.remover ? 'checked' : ''}>
+          Remover as ${p.ausentes.length} unidades que não constam da planilha</label>
+        <p class="nota-calculo">Sem marcar, elas ficam como estão — é o padrão, e o mais seguro quando a
+          planilha cobre só parte da estrutura. Marcando, as entregas dessas unidades são preservadas no
+          acervo, mas os servidores e os lançamentos de produção vinculados a elas são apagados.</p>` : ''}
+      <div class="acoes">
+        <button class="btn" id="imp-aplicar">Aplicar importação</button>
+        <button class="btn btn-sec" id="imp-cancelar">Cancelar</button>
+      </div>
+    </div>` : '';
+
+  alvo.innerHTML = `
+  <div class="card card-larga">
+    <h3 class="card-titulo">Importar unidades de uma planilha ${tipInfo('A planilha precisa ter uma coluna de órgão e uma de nome da unidade. Sigla, natureza, método, código, tipo, eixo e replicabilidade são reconhecidos quando existirem. O cabeçalho pode estar em qualquer uma das primeiras linhas.')}</h3>
+    <p class="muted" style="font-size:13px">Formato do Anexo I — unidades dimensionáveis por órgão e método.
+      Os órgãos são criados a partir da coluna de órgão; não é preciso cadastrá-los antes.</p>
+    <div class="ia-drop" id="imp-drop">
+      <p>Escolher a planilha</p>
+      <small>xlsx, xls, csv ou tsv — as abas são varridas até achar o cabeçalho</small>
+    </div>
+    <input type="file" id="imp-file" accept=".xlsx,.xls,.csv,.tsv,.txt" hidden>
+    ${resumoArquivo}
+    ${colunas}
+    ${IMP.ocupado ? '<div class="ia-status"><span class="ia-girando"></span> Lendo a planilha…</div>' : ''}
+    ${IMP.erro ? `<div class="banner erro" style="margin:12px 0 0">${E(IMP.erro)}</div>` : ''}
+  </div>
+  ${previa}`;
+
+  const inp = document.getElementById('imp-file');
+  const drop = document.getElementById('imp-drop');
+  drop.addEventListener('click', () => inp.click());
+  ['dragover', 'dragenter'].forEach(ev => drop.addEventListener(ev, e => {
+    e.preventDefault(); drop.classList.add('sobre');
+  }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, () => drop.classList.remove('sobre')));
+  drop.addEventListener('drop', e => { e.preventDefault(); impCarrega(e.dataTransfer.files[0]); });
+  inp.addEventListener('change', () => impCarrega(inp.files[0]));
+
+  const tira = document.getElementById('imp-tira');
+  if (tira) tira.addEventListener('click', () => { impLimpa(); painelImportacao(); });
+
+  const rem = document.getElementById('imp-remover');
+  if (rem) rem.addEventListener('change', () => { IMP.remover = rem.checked; });
+
+  const cancelar = document.getElementById('imp-cancelar');
+  if (cancelar) cancelar.addEventListener('click', () => { impLimpa(); painelImportacao(); });
+
+  const aplicar = document.getElementById('imp-aplicar');
+  if (aplicar) aplicar.addEventListener('click', () => {
+    const r = IMP.previa;
+    const aviso = IMP.remover && r.ausentes.length
+      ? `\n\nSerão REMOVIDAS ${r.ausentes.length} unidades que não constam da planilha.` : '';
+    if (!confirm(`Aplicar a importação?\n\n${r.novas.length} unidades novas, ${r.atualizadas.length} atualizadas`
+      + `, ${r.orgaosNovos.length} órgãos criados.${aviso}`)) return;
+    const res = impAplicar(st());
+    impLimpa();
+    alert(`Importação concluída.\n\n${res.criadas} unidades criadas, ${res.atualizadas} atualizadas`
+      + `, ${res.removidas} removidas, ${res.orgaos} órgãos criados.`);
+    telaOrgaos();
+  });
+}
+
+async function impCarrega(file) {
+  if (!file) return;
+  Object.assign(IMP, { erro: '', previa: null, ocupado: true, arquivo: file.name });
+  painelImportacao();
+  try {
+    const abas = await impLerArquivo(file);
+    const achado = impAchaCabecalho(abas);
+    if (!achado) {
+      throw new Error('Não encontrei o cabeçalho. A planilha precisa de uma coluna de órgão e ' +
+        'uma com o nome da unidade nas primeiras 20 linhas de alguma aba.');
+    }
+    Object.assign(IMP, achado);
+    IMP.previa = impMontaPrevia(st());
+  } catch (e) {
+    IMP.erro = e.message;
+    Object.assign(IMP, { linhas: null, mapa: null, previa: null });
+  }
+  IMP.ocupado = false;
+  painelImportacao();
+}
+
 
 /* ============================================================
    Cargos — quadro individual + oportunidades de otimização

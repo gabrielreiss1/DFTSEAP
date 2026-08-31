@@ -11,3 +11,6 @@ chave*.local.js
 # lixo de sistema
 .DS_Store
 Thumbs.db
+
+# cópia local do leitor de planilhas (opcional, para rede que bloqueia CDN)
+xlsx.full.min.js
