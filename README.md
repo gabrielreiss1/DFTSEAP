@@ -16,7 +16,7 @@ python3 -m http.server 8000
 
 O resto do sistema funciona também abrindo o `index.html` direto.
 
-## Chave da API (aba "Descobrir entregas")
+## Chave da API (aba "Mapear entregas")
 
 O DFT fala direto com a API da Anthropic, sem servidor no meio. **Uma chave
 escrita dentro do `index.html` seria lida por qualquer pessoa que abrisse a

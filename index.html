@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DFT — Dimensionamento da Força de Trabalho · Estado do Paraná</title>
 
-  <!-- Chave da API da aba de descoberta por IA. O arquivo é opcional e fica fora
+  <!-- Chave da API da aba de mapeamento por IA. O arquivo é opcional e fica fora
        do git (veja .gitignore e chave-local.exemplo.js); sem ele a chave é
        digitada na própria aba. O onerror evita ruído no console quando falta. -->
   <script src="chave-local.js" onerror="this.remove()"></script>
@@ -882,7 +882,7 @@ details.card-detalhe {
 .dd-topo { position: relative; z-index: 30; }
 
 
-/* ---------- Descoberta de entregas por IA ---------- */
+/* ---------- Mapeamento de entregas por IA ---------- */
 .ia-passo { display: flex; align-items: baseline; gap: 9px; margin: 0 0 4px; }
 .ia-passo b { font-size: 13px; color: var(--ink); font-weight: 800; }
 .ia-passo span { font-size: 11.5px; color: var(--faint); }
@@ -4521,7 +4521,7 @@ function telaUnidade(uId, tab) {
 
   // detalhamento da unidade no menu lateral
   const itens = soProducao ? [['producao', 'Produção', 'relatorios']] : [
-    ['entregas', 'Entregas', 'docok'], ['descoberta', 'Descobrir entregas', 'robo'],
+    ['entregas', 'Entregas', 'docok'], ['mapeamento', 'Mapear entregas', 'robo'],
     ['producao', 'Produção', 'relatorios'],
     ['historico', 'Histórico retroativo', 'calend'], ['resultados', 'Resultados', 'grafico']
   ];
@@ -4565,7 +4565,7 @@ function telaUnidade(uId, tab) {
 
   const alvo = document.getElementById('conteudo-aba');
   if (emConstrucao) return abaEmConstrucao(alvo, u);
-  if (tab === 'descoberta') return abaDescoberta(alvo, uId);
+  if (tab === 'mapeamento') return abaMapeamento(alvo, uId);
   if (tab === 'producao') return abaProducao(alvo, uId);
   if (tab === 'historico') return abaHistorico(alvo, uId);
   if (tab === 'resultados' && !bloqueado) return telaResultados(alvo, uId);
@@ -7144,9 +7144,9 @@ function telaPainel() {
 }
 
 
-/* ===== descoberta.js ===== */
+/* ===== mapeamento.js ===== */
 /* ============================================================
-   DFT — Descoberta de entregas por IA
+   DFT — Mapeamento de entregas por IA
    Cruza duas camadas de evidência para propor as entregas de uma unidade:
      (1) o que a NORMA diz que a unidade faz  — normativo, planejamento
          estratégico e documento avulso (PDF);
@@ -7464,19 +7464,33 @@ async function iaChamar(u, s) {
 }
 
 /* ---------- a aba ---------- */
-function abaDescoberta(alvo, uId) {
+function abaMapeamento(alvo, uId) {
   const s = st();
   const u = Calc.unidade(s, uId);
 
-  const listaCtx = IA.ctx.length ? `<ul class="ia-arqs">${IA.ctx.map((a, i) => `
+  // IA.ctx guarda tudo o que vai como anexo para a IA, inclusive um extrato em
+  // PDF. Na tela, porém, cada arquivo tem de aparecer sob o passo em que foi
+  // enviado — por isso a lista é separada pela origem, e não pela ordem do array.
+  const comIndice = IA.ctx.map((a, i) => ({ a, i }));
+  const docsUnidade = comIndice.filter(x => x.a.fonte !== 'proto');
+  const protoPdf = comIndice.find(x => x.a.fonte === 'proto');
+
+  const itemArq = (a, i, medida) => `
     <li class="ia-arq">
       <span class="badge mini badge-azul">${E(a.papel)}</span>
       <span class="ia-arq-nome" title="${E(a.nome)}">${E(a.nome)}</span>
-      <span class="ia-arq-tam">${iaKB(a.tamanho)}</span>
+      <span class="ia-arq-tam">${medida || iaKB(a.tamanho)}</span>
       <button class="btn-x" data-tira-ctx="${i}" title="Remover">×</button>
-    </li>`).join('')}</ul>` : '';
+    </li>`;
 
-  const blocoProto = IA.proto ? `
+  const listaCtx = docsUnidade.length
+    ? `<ul class="ia-arqs">${docsUnidade.map(x => itemArq(x.a, x.i)).join('')}</ul>` : '';
+
+  const blocoProto = protoPdf ? `
+    <ul class="ia-arqs">${itemArq(protoPdf.a, protoPdf.i)}</ul>
+    <p class="nota-calculo">O extrato em PDF vai inteiro para a IA — não há colunas a escolher.
+      Para filtrar colunas, envie o e-Protocolo como planilha.</p>`
+    : IA.proto ? `
     <ul class="ia-arqs">
       <li class="ia-arq">
         <span class="badge mini badge-azul">e-Protocolo</span>
@@ -7515,7 +7529,7 @@ function abaDescoberta(alvo, uId) {
 
   alvo.innerHTML = `
   <div class="card card-larga">
-    <h3>Descobrir entregas ${tipInfo('A IA lê os documentos da unidade e o extrato do e-Protocolo e propõe entregas no padrão do DFT. Nada é cadastrado sem a sua confirmação.')}</h3>
+    <h3>Mapear entregas ${tipInfo('A IA lê os documentos da unidade e o extrato do e-Protocolo e propõe entregas no padrão do DFT. Nada é cadastrado sem a sua confirmação.')}</h3>
     <p class="muted" style="font-size:13px">Duas camadas de evidência: o que a norma diz que a
       ${E(u.sigla)} faz e o que o e-Protocolo mostra que ela processa. A IA cruza as duas e
       devolve entregas candidatas — você revisa e escolhe o que entra.</p>
@@ -7568,7 +7582,7 @@ function abaDescoberta(alvo, uId) {
   inCtx.addEventListener('change', () => iaAddCtx(inCtx.files, uId));
 
   alvo.querySelectorAll('[data-tira-ctx]').forEach(b => b.addEventListener('click', () => {
-    IA.ctx.splice(Number(b.dataset.tiraCtx), 1); telaUnidade(uId, 'descoberta');
+    IA.ctx.splice(Number(b.dataset.tiraCtx), 1); telaUnidade(uId, 'mapeamento');
   }));
 
   /* --- passo 2: e-Protocolo --- */
@@ -7583,7 +7597,7 @@ function abaDescoberta(alvo, uId) {
   inProto.addEventListener('change', () => iaAddProto(inProto.files[0], uId));
 
   const tiraProto = document.getElementById('ia-tira-proto');
-  if (tiraProto) tiraProto.addEventListener('click', () => { IA.proto = null; telaUnidade(uId, 'descoberta'); });
+  if (tiraProto) tiraProto.addEventListener('click', () => { IA.proto = null; telaUnidade(uId, 'mapeamento'); });
   alvo.querySelectorAll('.ia-col').forEach(c => c.addEventListener('change', () => {
     const i = Number(c.dataset.col);
     if (c.checked) IA.proto.selecionadas.add(i); else IA.proto.selecionadas.delete(i);
@@ -7610,7 +7624,7 @@ function abaDescoberta(alvo, uId) {
   document.getElementById('ia-rodar').addEventListener('click', () => iaRodar(uId));
   const btnLimpar = document.getElementById('ia-limpar');
   if (btnLimpar) btnLimpar.addEventListener('click', () => {
-    IA.propostas = null; IA.descartados = null; IA.erro = ''; telaUnidade(uId, 'descoberta');
+    IA.propostas = null; IA.descartados = null; IA.erro = ''; telaUnidade(uId, 'mapeamento');
   });
 
   iaPintaStatus();
@@ -7626,11 +7640,17 @@ async function iaAddCtx(files, uId) {
       IA.erro = `${f.name} tem ${iaKB(f.size)} — o limite é ${DFT_IA_MAX_MB} MB.`; continue;
     }
     IA.ctx.push({
-      nome: f.name, tamanho: f.size, papel: papel(f.name),
+      nome: f.name, tamanho: f.size, papel: papel(f.name), fonte: 'unidade',
       base64: await iaLerBase64(f)
     });
   }
-  telaUnidade(uId, 'descoberta');
+  telaUnidade(uId, 'mapeamento');
+}
+
+// tira do payload o extrato em PDF que estiver lá, sem tocar nos documentos da unidade
+function iaTiraProtoDoCtx() {
+  const i = IA.ctx.findIndex(a => a.fonte === 'proto');
+  if (i >= 0) IA.ctx.splice(i, 1);
 }
 
 async function iaAddProto(file, uId) {
@@ -7638,8 +7658,13 @@ async function iaAddProto(file, uId) {
   IA.erro = '';
   try {
     if (/\.pdf$/i.test(file.name)) {
+      if (file.size > DFT_IA_MAX_MB * 1048576) {
+        throw new Error(`${file.name} tem ${iaKB(file.size)} — o limite é ${DFT_IA_MAX_MB} MB.`);
+      }
+      // o passo 2 aceita um extrato por vez: o novo toma o lugar do anterior
+      iaTiraProtoDoCtx();
       IA.ctx.push({
-        nome: file.name, tamanho: file.size, papel: 'e-Protocolo',
+        nome: file.name, tamanho: file.size, papel: 'e-Protocolo', fonte: 'proto',
         base64: await iaLerBase64(file)
       });
       IA.proto = null;
@@ -7654,12 +7679,13 @@ async function iaAddProto(file, uId) {
         if (/assunto|órg|orgao|unidade|setor|descri|quant|total|volume|qtd/i.test(c)) sel.add(i);
       });
       if (!sel.size) colunas.forEach((c, i) => sel.add(i));
+      iaTiraProtoDoCtx();   // a planilha substitui um extrato em PDF anterior
       IA.proto = { nome: file.name, colunas, linhas: corpo, selecionadas: sel };
     }
   } catch (e) {
     IA.erro = e.message;
   }
-  telaUnidade(uId, 'descoberta');
+  telaUnidade(uId, 'mapeamento');
 }
 
 function iaPintaStatus() {
@@ -7702,7 +7728,7 @@ async function iaRodar(uId) {
       : e.message;
   }
   IA.ocupado = false;
-  telaUnidade(uId, 'descoberta');
+  telaUnidade(uId, 'mapeamento');
 }
 
 function iaPintaPropostas(uId) {
