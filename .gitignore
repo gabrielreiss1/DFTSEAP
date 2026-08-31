@@ -1,0 +1,13 @@
+# Chave da API da Anthropic — nunca versionada.
+# O repositório é público: qualquer chave commitada aqui vira chave pública.
+chave-local.js
+
+# variações comuns, por segurança
+chave*.local.js
+.env
+.env.*
+!.env.exemplo
+
+# lixo de sistema
+.DS_Store
+Thumbs.db
