@@ -7532,11 +7532,16 @@ async function iaChamar(u, s) {
     let detalhe = '';
     try { const j = await resp.json(); detalhe = (j.error && j.error.message) || ''; }
     catch (e) { /* corpo não era JSON */ }
-    if (resp.status === 401) throw new Error('Chave da API recusada. Confira se ela foi copiada inteira.');
-    if (resp.status === 429) throw new Error('Limite de uso atingido. Tente de novo em alguns instantes.');
+    if (resp.status === 401) throw new Error('Chave da API recusada. Confira se ela foi copiada inteira e se não foi revogada.');
+    if (resp.status === 403) throw new Error('A chave não tem acesso a este modelo. Verifique as permissões dela no console da Anthropic.');
+    // 429 é limite por minuto: passa sozinho. Não confundir com falta de crédito,
+    // que é 400 e não passa com o tempo.
+    if (resp.status === 429) throw new Error('Limite de requisições por minuto atingido. Espere alguns instantes e rode de novo.');
     if (resp.status === 400 && /credit|balance/i.test(detalhe)) {
-      throw new Error('A conta da API está sem crédito ativo.');
+      throw new Error('A conta da API está sem créditos. Os créditos da API são comprados à parte, ' +
+        'no console da Anthropic em Plans & Billing — assinatura do Claude.ai (Pro ou Max) não cobre o uso da API.');
     }
+    if (resp.status === 404) throw new Error(`O modelo ${DFT_IA_MODELO} não foi encontrado. ${detalhe}`);
     throw new Error(`A API respondeu ${resp.status}. ${detalhe}`);
   }
 
@@ -7812,9 +7817,12 @@ async function iaRodar(uId) {
     IA.descartados = r.descartados || [];
     if (!IA.propostas.length) IA.erro = 'A IA não encontrou entregas com evidência suficiente. Tente incluir mais documentos.';
   } catch (e) {
-    IA.erro = /Failed to fetch|NetworkError/i.test(e.message)
-      ? 'O navegador bloqueou a chamada. Abrindo o arquivo direto do disco (file://) isso costuma acontecer — ' +
-        'rode a pasta num servidor local, por exemplo com: python -m http.server'
+    // A chamada nem chegou à API: o erro é do navegador, não da Anthropic. Como
+    // ele não diz o motivo (por segurança), a mensagem lista o que costuma ser.
+    IA.erro = /Failed to fetch|NetworkError|Load failed/i.test(e.message)
+      ? 'O navegador não conseguiu chamar a API — a requisição não chegou a sair. As causas comuns, nesta ordem: ' +
+        'a página foi aberta direto do disco (file://), e aí é preciso servir a pasta, por exemplo com ' +
+        'python3 -m http.server; alguma extensão, antivírus ou proxy da rede bloqueou a chamada; ou a máquina está sem internet.'
       : e.message;
   }
   IA.ocupado = false;
