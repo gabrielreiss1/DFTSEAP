@@ -7421,8 +7421,27 @@ function normativoDaUnidade(u) {
 // o PDF é lido uma vez por sessão e reaproveitado entre unidades do mesmo órgão
 const IA_NORM_CACHE = {};
 
+/* Os regulamentos podem vir de dois lugares. Na versão de arquivo único eles
+   estão embutidos na própria página, e é o caso que funciona em qualquer
+   situação — sem pasta, sem zip para extrair no lugar certo. Não havendo os
+   embutidos, cai na pasta normativos/, que exige a página servida. */
+function iaNormativoEmbutido(arquivo) {
+  if (window._dftNorm === undefined) {
+    const el = document.getElementById('dft-normativos');
+    try { window._dftNorm = el ? JSON.parse(el.textContent) : null; }
+    catch (e) { window._dftNorm = null; }
+  }
+  const d = window._dftNorm && window._dftNorm[arquivo];
+  if (!d) return null;
+  return d.texto != null
+    ? { texto: d.texto, tamanho: d.texto.length }
+    : { base64: d.base64, tamanho: Math.round(d.base64.length * 0.75) };
+}
+
 function iaBaixaNormativo(arquivo) {
   if (IA_NORM_CACHE[arquivo]) return IA_NORM_CACHE[arquivo];
+  const emb = iaNormativoEmbutido(arquivo);
+  if (emb) { IA_NORM_CACHE[arquivo] = Promise.resolve(emb); return IA_NORM_CACHE[arquivo]; }
   const ehTexto = /\.(txt|md)$/i.test(arquivo);
   IA_NORM_CACHE[arquivo] = fetch('normativos/' + encodeURIComponent(arquivo))
     .then(r => { if (!r.ok) throw new Error('sem o arquivo'); return ehTexto ? r.text() : r.blob(); })
@@ -7890,8 +7909,14 @@ function abaMapeamento(alvo, uId) {
                — art. 28 do Regulamento da SEJU.`}</p>
       ${norm.ressalva ? `<p class="norm-ressalva">${E(norm.ressalva)}</p>` : ''}
       ${normAnexado ? '' : norm.arquivo
-        ? `<p class="norm-ressalva">O arquivo <code>normativos/${E(norm.arquivo)}</code> não foi
-           encontrado — sirva a pasta por um servidor local para que ele seja anexado sozinho.</p>`
+        ? (location.protocol === 'file:'
+          ? `<p class="norm-ressalva">A página foi aberta direto do disco (<code>file://</code>), e aí o
+             navegador não deixa ler o arquivo. Sirva a pasta — dois cliques em <code>abrir.cmd</code> —
+             ou use a versão de arquivo único, que já traz os regulamentos dentro.</p>`
+          : `<p class="norm-ressalva">Não achei <code>normativos/${E(norm.arquivo)}</code>. A pasta
+             <code>normativos</code> precisa estar <b>ao lado</b> do <code>index.html</code>, não dentro
+             de outra pasta — é o que costuma acontecer ao extrair o zip. Ou use a versão de arquivo
+             único, que dispensa a pasta.</p>`)
         : `<p class="norm-ressalva">Ainda não reunido. Baixe o ato${norm.onde
              ? ` em <a href="${E(norm.onde)}" target="_blank" rel="noopener">${E(new URL(norm.onde).hostname)}</a>`
              : ' no <a href="https://www.legislacao.pr.gov.br" target="_blank" rel="noopener">Sistema Legislação</a>'},

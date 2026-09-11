@@ -4,6 +4,24 @@ Aplicação de página única (`index.html`) para dimensionamento da força de
 trabalho. Não tem build nem dependência instalada: é um arquivo só, que roda
 direto no navegador. Os dados ficam no `localStorage` da máquina de quem usa.
 
+## Duas versões
+
+**`DFT-completo.html` — arquivo único (recomendado).** Traz os 11 regulamentos
+embutidos. Não depende de pasta nenhuma ao lado dele: baixe e abra. É a versão a
+usar quando o objetivo é só rodar o sistema.
+
+**`index.html` + pasta `normativos/`** — a versão de trabalho, para editar o
+código. Aqui os regulamentos são lidos da pasta, que precisa estar **ao lado** do
+`index.html`. Extrair o zip dentro de outra pasta é o erro mais comum: aí vira
+`DFT-normativos/normativos/` e o app não acha.
+
+Para regerar o arquivo único depois de mexer no código ou acrescentar um
+regulamento:
+
+```bash
+python3 montar-arquivo-unico.py
+```
+
 ## Rodando
 
 A aba de IA chama a API da Anthropic pelo navegador, e o navegador bloqueia essa
@@ -31,6 +49,10 @@ python3 -m http.server 8000    # ou: npx --yes http-server -p 8000
 Os atalhos procuram Python e, na falta dele, Node. Sem nenhum dos dois, instale
 o Python em <https://www.python.org/downloads/> — no Windows, marque *Add Python
 to PATH* durante a instalação.
+
+Os regulamentos, no arquivo único, são lidos mesmo por `file://`. A **chamada à
+API** da aba de IA é que continua exigindo a página servida — o navegador bloqueia
+requisição de origem `file://`.
 
 **Sem instalar nada**, dá para publicar o DFT no GitHub Pages e acessá-lo por
 uma URL. Como a chave da API nunca fica no repositório, ela continua sendo
