@@ -82,28 +82,44 @@ convém checar no Sistema Legislação antes de usar como base.
 
 ## Documentos já reunidos
 
-Estão em `normativos/`, ao lado do `index.html`, versionados junto do projeto.
-O DFT lê essa pasta: havendo ali o arquivo do órgão, a aba *Mapear entregas*
-**já abre com o regulamento anexado** no passo 1, sem precisar subir nada.
+Onze documentos em `normativos/`, ao lado do `index.html`. **272 das 303 unidades
+(89%) abrem com o regulamento já anexado** na aba *Mapear entregas*.
 
-| Arquivo | Conteúdo |
-|---|---|
-| `SEJU_decreto_8807_2025.pdf` | Regulamento da SEJU — 17 páginas, estrutura e competências por unidade |
-| `CEP_regimento_escolar_2022.pdf` | Regimento do Colégio Estadual do Paraná — 173 páginas, atribuições por setor |
-| `SEPL_decreto_8657_2018.pdf` | Regulamento da SEPL de 2018 — completo, porém superado pelo de 09/2025 |
+| Arquivo | Ato | Conteúdo |
+|---|---|---|
+| `SEAP_decreto_3888_2020.pdf` | Decreto 3.888/2020 | 19 p · 26 competências |
+| `CGE_decreto_2741_2019.txt` | Decreto 2.741/2019 | 45,6 mil caracteres · 18 competências |
+| `SEED_decreto_8425_2017.pdf` | Decreto 8.425/2017 | 30 p · 32 competências |
+| `SESA_decreto_9921_2014.pdf` | Decreto 9.921/2014 | 61 p · 123 competências |
+| `SEJU_decreto_8807_2025.pdf` | Decreto 8.807/2025 | 28 p · 54 competências |
+| `SETU_decreto_11974_2022_consolidado.pdf` | Decreto 11.974/2022, alterado pelo 7.042/2024 | 29 p · 42 competências |
+| `SEFA_decreto_12279_2025.pdf` | Decreto 12.279/2025, alterado pelo 12.317/2025 | 40 p · 67 competências |
+| `FUNDEPAR_decreto_8362_2024.pdf` | Decreto 8.362/2024 | 17 p · 45 competências |
+| `IPARDES_decreto_3203_2023.pdf` | Decreto 3.203/2023 | 21 p · 23 competências |
+| `SEPL_decreto_8657_2018.pdf` | Decreto 8.657/2018 | 16 p — **superado** pelo de 09/2025 |
+| `CEP_regimento_escolar_2022.pdf` | Regimento Escolar | 173 p · atribuições por setor |
 
-## Onde obter
+Todos os decretos saíram do anexo oficial no Sistema Legislação, pelo endereço
+`exibirAto.do?action=abrirAnexo&codArquivoAnexado=<id>`. O do corpo do decreto
+não serve: ele apenas aprova o Regulamento "na forma do Anexo" — a competência
+está no anexo.
 
-- Sistema Legislação do Paraná — <https://www.legislacao.pr.gov.br>
-  (busca por tipo, número e ano; traz o texto compilado e o original)
-- Diário Oficial do Estado — <https://www.documentos.dioe.pr.gov.br>
-- SEJU · Decreto 8.807/2025 — [PDF](https://www.justica.pr.gov.br/sites/default/arquivos_restritos/files/documento/2025-09/decreto_ndeg_8807-2025_-_aprova_o_regulamento_da_secretaria_de_estado_da_justica_e_cidadania.pdf)
-- CEP · Regimento Escolar 2022 — [PDF](https://www.cep.pr.gov.br/sites/cep/arquivos_restritos/files/documento/2024-04/cep_regimento_escolar_2022_setembro_revisado.pdf)
-- SEPL · Decreto 8.657/2018 (superado) — [PDF](https://www.planejamento.pr.gov.br/sites/default/arquivos_restritos/files/migrados/File/Decreto_8657_2018.pdf)
-- FUNDEPAR · competências — <https://www.fundepar.pr.gov.br/Pagina/Competencias>
-- CGE · legislação — <https://www.cge.pr.gov.br/Pagina/Controladoria-Geral-do-Estado-Legislacao>
-- SECOM · legislação — <https://www.comunicacao.pr.gov.br/Pagina/Legislacao>
-- SEFA · resoluções — <https://www.fazenda.pr.gov.br/Pagina/Resolucoes-e-Portarias-SEFA-e-REPR>
+O da CGE é `.txt` porque o portal o publica em ODT, não em PDF; o texto foi
+extraído e vai para a IA como texto, que a API lê nativamente.
+
+### Duas correções que o levantamento produziu
+
+- **SETU**: o Regulamento não é do Decreto 7.042/2024, e sim do **11.974/2022**,
+  que aquele apenas alterou. O arquivo é o texto consolidado, mais completo.
+- **FUNDEPAR**: a competência está no **Decreto 8.362, de 16/12/2024**, não no
+  3.270/2023, que trata de outra coisa.
+
+### O que ainda falta (31 unidades)
+
+- **AMEP** (24 unidades). O site da AMEP aponta o Decreto 12.038, de 28/11/2025,
+  mas o ato com esse número no Sistema Legislação é de **crédito suplementar**,
+  datado de 25/11/2025. Há conflito entre as duas fontes — resolver antes de usar.
+- **SECOM** (7 unidades, os NCS). Decreto 4.276/2023, ainda não obtido.
 
 ## Como o DFT usa isso
 

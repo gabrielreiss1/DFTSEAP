@@ -7311,24 +7311,28 @@ const DFT_NUCLEO_SISTEMICO = {
 };
 
 const DFT_NORMATIVOS = {
-  AMEP:     { ato: 'Decreto 12.038, de 28/11/2025' },
+  AMEP:     { ato: 'Decreto 12.038, de 28/11/2025',
+              onde: 'https://www.amep.pr.gov.br/Pagina/Apresentacao',
+              ressalva: 'não localizado no Sistema Legislação: o Decreto 12.038/2025 que consta lá é de crédito suplementar' },
   CEP:      { ato: 'Regimento Escolar do CEP (2022)', arquivo: 'CEP_regimento_escolar_2022.pdf',
               onde: 'https://www.cep.pr.gov.br/Pagina/Documentos-oficiais' },
-  CGE:      { ato: 'Decreto 2.741, de 19/09/2019',
-              onde: 'https://www.cge.pr.gov.br/Pagina/Controladoria-Geral-do-Estado-Legislacao' },
-  FUNDEPAR: { ato: 'Decreto 3.270, de 24/08/2023; Decreto 8.362/2024',
-              onde: 'https://www.fundepar.pr.gov.br/Pagina/Competencias' },
-  IPARDES:  { ato: 'Decreto 3.203, de 22/08/2023 (DIOE 11.487)' },
-  SEAP:     { ato: 'Decreto 3.888, de 21/01/2020' },
+  CGE:      { ato: 'Decreto 2.741, de 19/09/2019', arquivo: 'CGE_decreto_2741_2019.txt' },
+  FUNDEPAR: { ato: 'Decreto 8.362, de 16/12/2024', arquivo: 'FUNDEPAR_decreto_8362_2024.pdf' },
+  IPARDES:  { ato: 'Decreto 3.203, de 22/08/2023', arquivo: 'IPARDES_decreto_3203_2023.pdf' },
+  SEAP:     { ato: 'Decreto 3.888, de 21/01/2020', arquivo: 'SEAP_decreto_3888_2020.pdf' },
   SECOM:    { ato: 'Decreto 4.276/2023', onde: 'https://www.comunicacao.pr.gov.br/Pagina/Legislacao' },
-  SEED:     { ato: 'Decreto 8.425, de 07/12/2017', ressalva: 'anterior à Lei 21.352/2023 — confirmar vigência' },
-  SEFA:     { ato: 'Decreto 12.279, de 16/12/2025; Resolução SEFA 439/2026',
-              onde: 'https://www.fazenda.pr.gov.br/Pagina/Resolucoes-e-Portarias-SEFA-e-REPR' },
+  SEED:     { ato: 'Decreto 8.425, de 07/12/2017', arquivo: 'SEED_decreto_8425_2017.pdf',
+              ressalva: 'anterior à Lei 21.352/2023 — confirmar vigência' },
+  SEFA:     { ato: 'Decreto 12.279, de 16/12/2025', arquivo: 'SEFA_decreto_12279_2025.pdf',
+              ressalva: 'texto consolidado, já com a alteração do Decreto 12.317, de 18/12/2025' },
   SEJU:     { ato: 'Decreto 8.807, de 30/01/2025', arquivo: 'SEJU_decreto_8807_2025.pdf' },
   SEPL:     { ato: 'Decreto de 16/09/2025', arquivo: 'SEPL_decreto_8657_2018.pdf',
               ressalva: 'o arquivo é o Decreto 8.657/2018, superado: não traz DDI, DAG nem UTEC' },
-  SESA:     { ato: 'Decreto 9.921, de 23/01/2014', ressalva: 'anterior à Lei 21.352/2023 — confirmar vigência' },
-  SETU:     { ato: 'Decreto 7.042, de 12/08/2024' }
+  SESA:     { ato: 'Decreto 9.921, de 23/01/2014', arquivo: 'SESA_decreto_9921_2014.pdf',
+              ressalva: 'anterior à Lei 21.352/2023 — confirmar vigência' },
+  SETU:     { ato: 'Decreto 11.974/2022, alterado pelo Decreto 7.042, de 12/08/2024',
+              arquivo: 'SETU_decreto_11974_2022_consolidado.pdf',
+              ressalva: 'texto consolidado: o Regulamento vem do Decreto 11.974/2022, que o 7.042/2024 alterou' }
 };
 
 function normativoDaUnidade(u) {
@@ -7343,14 +7347,19 @@ const IA_NORM_CACHE = {};
 
 function iaBaixaNormativo(arquivo) {
   if (IA_NORM_CACHE[arquivo]) return IA_NORM_CACHE[arquivo];
+  const ehTexto = /\.(txt|md)$/i.test(arquivo);
   IA_NORM_CACHE[arquivo] = fetch('normativos/' + encodeURIComponent(arquivo))
-    .then(r => { if (!r.ok) throw new Error('sem o arquivo'); return r.blob(); })
-    .then(b => new Promise((ok, err) => {
-      const fr = new FileReader();
-      fr.onload = () => ok({ base64: String(fr.result).split(',')[1], tamanho: b.size });
-      fr.onerror = () => err(new Error('não foi possível ler ' + arquivo));
-      fr.readAsDataURL(b);
-    }))
+    .then(r => { if (!r.ok) throw new Error('sem o arquivo'); return ehTexto ? r.text() : r.blob(); })
+    .then(d => ehTexto
+      // regulamento que só existe como documento de texto vai como texto mesmo:
+      // a API lê direto, sem o custo de converter para PDF
+      ? { texto: d, tamanho: d.length }
+      : new Promise((ok, err) => {
+        const fr = new FileReader();
+        fr.onload = () => ok({ base64: String(fr.result).split(',')[1], tamanho: d.size });
+        fr.onerror = () => err(new Error('não foi possível ler ' + arquivo));
+        fr.readAsDataURL(d);
+      }))
     .catch(e => { IA_NORM_CACHE[arquivo] = null; throw e; });
   return IA_NORM_CACHE[arquivo];
 }
@@ -7364,12 +7373,12 @@ async function iaAnexaNormativo(u, uId) {
   if (IA.ctx.some(a => a.normativo === n.arquivo)) return;   // já anexado
   if (IA.semNormativo[n.arquivo]) return;                    // já falhou antes
   try {
-    const { base64, tamanho } = await iaBaixaNormativo(n.arquivo);
+    const { base64, texto, tamanho } = await iaBaixaNormativo(n.arquivo);
     if (IA.ctx.some(a => a.normativo === n.arquivo)) return;  // corrida entre renders
-    IA.ctx.unshift({
-      nome: n.arquivo, tamanho, papel: 'Normativo', fonte: 'unidade',
-      normativo: n.arquivo, base64
-    });
+    IA.ctx.unshift(Object.assign(
+      { nome: n.arquivo, tamanho, papel: 'Normativo', fonte: 'unidade', normativo: n.arquivo },
+      texto != null ? { texto } : { base64 }
+    ));
     if (document.getElementById('ia-drop-ctx')) telaUnidade(uId, 'mapeamento');
   } catch (e) {
     IA.semNormativo[n.arquivo] = true;
