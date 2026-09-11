@@ -926,7 +926,6 @@ details.card-detalhe {
   height: 100%; border-radius: 99px; background: var(--grad);
   transition: width .45s linear;
 }
-.ia-prog-nota { font-size: 11.5px; color: var(--faint); margin: 7px 0 0; }
 @media (prefers-reduced-motion: reduce) { .ia-prog-barra { transition: none; } }
 
 /* ---------- indicadores ---------- */
@@ -8223,8 +8222,6 @@ function iaPintaStatus() {
           <span class="ia-prog-tempo mono">${seg}s</span>
         </div>
         <div class="ia-prog-trilha"><div class="ia-prog-barra" style="width:${p.pct.toFixed(1)}%"></div></div>
-        <p class="ia-prog-nota">Costuma levar de 20 a 60 segundos. A barra é uma estimativa por
-          tempo — a API responde de uma vez só, sem informar o quanto já andou.</p>
       </div>`;
   } else if (IA.erro) {
     box.innerHTML = `<div class="banner erro" style="margin:12px 0 0">${E(IA.erro)}</div>`;
@@ -10068,8 +10065,6 @@ function otimBarraHTML() {
         <span class="ia-prog-tempo mono">${seg}s</span>
       </div>
       <div class="ia-prog-trilha"><div class="ia-prog-barra" style="width:${p.pct.toFixed(1)}%"></div></div>
-      <p class="ia-prog-nota">Costuma levar de 20 a 60 segundos. A barra é uma estimativa por
-        tempo — a API responde de uma vez só, sem informar o quanto já andou.</p>
     </div>`;
 }
 
