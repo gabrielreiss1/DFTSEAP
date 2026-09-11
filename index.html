@@ -911,6 +911,55 @@ details.card-detalhe {
 .ia-arq-tam { font: 500 10.5px var(--mono); color: var(--faint); }
 .ia-cols { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; }
 .ia-cols label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+/* ---------- estimativa de impacto da IA (tela de otimização) ---------- */
+.tip-btn {
+  border: none; cursor: pointer; font: inherit; vertical-align: middle;
+  margin-left: 5px;
+}
+.otim-marca {
+  font: 700 9.5px var(--mono); letter-spacing: .06em; margin-left: 5px;
+  padding: 2px 5px; border-radius: 4px; vertical-align: middle;
+  background: rgba(74, 58, 167, .12); color: #4a3aa7;
+}
+.otim-proposta { margin-top: 16px; border-top: 1px solid var(--trilha); padding-top: 14px; }
+.otim-proposta h4 { margin: 0 0 8px; font-size: 13px; font-weight: 800; color: var(--ink); }
+.otim-rac { font-size: 12px; color: var(--muted); max-width: 460px; }
+.otim-delta { font: 700 11px var(--mono); margin-left: 4px; }
+.otim-delta.sobe { color: var(--vermelho-txt); }
+.otim-delta.desce { color: var(--verde-txt); }
+
+.otim-detalhe { padding: 18px 22px 24px; overflow-y: auto; max-height: calc(92vh - 50px); }
+.otim-detalhe h4 {
+  margin: 18px 0 6px; font-size: 11px; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--muted); font-weight: 800;
+}
+.otim-detalhe > p { font-size: 13.5px; color: var(--ink); margin: 0; }
+.otim-num { display: flex; gap: 26px; flex-wrap: wrap; }
+.otim-num div { display: flex; align-items: baseline; gap: 7px; }
+.otim-num span { font-size: 11.5px; color: var(--muted); }
+.otim-num b { font: 700 22px var(--mono); color: var(--ink); }
+.conf {
+  font: 700 9.5px var(--mono); text-transform: uppercase; letter-spacing: .05em;
+  padding: 2px 6px; border-radius: 4px;
+}
+.conf-alta { background: rgba(14, 158, 110, .14); color: var(--verde-txt); }
+.conf-media { background: #fdf3dd; color: #8a6410; }
+.conf-baixa { background: rgba(226, 86, 79, .13); color: var(--vermelho-txt); }
+
+.otim-refs { margin: 6px 0 0; padding-left: 20px; display: grid; gap: 14px; }
+.otim-refs li { font-size: 13px; color: var(--ink); }
+.otim-detalhe .nota-calculo { margin-top: 20px; padding-top: 12px; border-top: 1px solid var(--trilha); }
+.otim-refs i { color: var(--muted); }
+.otim-ef, .otim-lim { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.otim-lim { color: var(--faint); }
+.otim-tag {
+  display: inline-block; font: 700 9.5px var(--mono); letter-spacing: .05em;
+  padding: 2px 6px; border-radius: 4px; margin-left: 4px; white-space: nowrap;
+}
+.tag-alta { background: rgba(14, 158, 110, .14); color: var(--verde-txt); }
+.tag-média, .tag-media { background: rgba(19, 96, 216, .12); color: var(--azul); }
+.tag-lacuna { background: rgba(226, 86, 79, .13); color: var(--vermelho-txt); }
+
 .norm {
   border: 1px solid var(--trilha); border-radius: 7px;
   padding: 12px 14px; margin-top: 12px; background: rgba(19, 96, 216, .04);
@@ -9607,6 +9656,430 @@ const QUADRANTES_CAT = [
   { nome: 'Ganho marginal — monitorar', cor: '#6b7b88', teste: (x, y) => x < 50 && y < 50 }
 ];
 
+
+/* ===== otimizacao-ia.js ===== */
+/* ============================================================
+   DFT — Estimativa do impacto da IA por categoria de atividade
+
+   A tela de otimização pede dois percentuais por categoria: quanto o trabalho
+   fica mais RÁPIDO (produtividade) e quanto dele DEIXA DE SER DEMANDADO
+   (demanda). Preenchê-los no olho é chute; aqui eles são estimados por um
+   modelo obrigado a se apoiar num corpus de estudos com efeito medido, e a
+   dizer, para cada número, em que se apoiou.
+
+   Uma assimetria do corpus atravessa todo o módulo: o eixo PRODUTIVIDADE tem
+   experimentos aleatorizados com efeito medido; o eixo DEMANDA não tem nada
+   equivalente revisado por pares. Por isso o prompt manda ser mais conservador
+   na demanda e declarar essa fragilidade — e a tela mostra essa ressalva.
+   ============================================================ */
+
+const DFT_EVIDENCIA_IA = [
+  {
+    id: 'noy2023', eixo: 'produtividade', forca: 'alta',
+    autores: 'Noy, S.; Zhang, W.', ano: 2023,
+    titulo: 'Experimental evidence on the productivity effects of generative artificial intelligence',
+    veiculo: 'Science, 381(6654), 187–192', ref: 'doi:10.1126/science.adh2586',
+    desenho: 'Experimento aleatorizado, pré-registrado', amostra: '453 profissionais com ensino superior',
+    efeito: 'Tempo da tarefa −40%; qualidade avaliada +18%',
+    escopo: 'Redação profissional de nível médio — memorandos, releases, relatórios curtos, análises breves',
+    limite: 'Tarefas curtas e autocontidas, executadas fora do fluxo real de trabalho; ganho tende a ser menor em processos com tramitação, consulta e revisão'
+  },
+  {
+    id: 'bryn2023', eixo: 'produtividade', forca: 'alta',
+    autores: 'Brynjolfsson, E.; Li, D.; Raymond, L.', ano: 2023,
+    titulo: 'Generative AI at Work',
+    veiculo: 'NBER Working Paper 31161', ref: 'nber.org/papers/w31161',
+    desenho: 'Implantação escalonada em campo (diferenças em diferenças)', amostra: '5.179 atendentes de suporte',
+    efeito: '+14% de casos resolvidos por hora na média; +34% entre os novatos; efeito próximo de zero entre os mais experientes',
+    escopo: 'Atendimento com base de conhecimento e roteiro',
+    limite: 'O ganho se concentra em quem tinha menos experiência — em equipe madura o efeito médio cai; o estudo não mede queda de demanda'
+  },
+  {
+    id: 'dell2023', eixo: 'produtividade', forca: 'alta',
+    autores: "Dell'Acqua, F. et al.", ano: 2023,
+    titulo: 'Navigating the Jagged Technological Frontier',
+    veiculo: 'Harvard Business School WP 24-013; Organization Science (2025)', ref: 'ssrn:4573321',
+    desenho: 'Experimento de campo aleatorizado', amostra: '758 consultores do BCG',
+    efeito: 'Dentro da fronteira de capacidade: +12,2% de tarefas concluídas, 25,1% mais rápido, qualidade +40%. FORA da fronteira: desempenho PIOR que o grupo de controle',
+    escopo: 'Trabalho analítico de conhecimento — diagnóstico, ideação, estruturação de recomendação',
+    limite: 'É a evidência central de que o efeito não é uniforme: em tarefa que excede a capacidade do modelo, o resultado piora porque o erro vem apresentado com confiança'
+  },
+  {
+    id: 'peng2023', eixo: 'produtividade', forca: 'média',
+    autores: 'Peng, S.; Kalliamvakou, E.; Cihon, P.; Demirer, M.', ano: 2023,
+    titulo: 'The Impact of AI on Developer Productivity: Evidence from GitHub Copilot',
+    veiculo: 'arXiv:2302.06590', ref: 'arxiv.org/abs/2302.06590',
+    desenho: 'Experimento controlado aleatorizado', amostra: '95 desenvolvedores profissionais',
+    efeito: '55,8% mais rápido na conclusão da tarefa',
+    escopo: 'Produção de código com especificação fechada',
+    limite: 'Tarefa única, bem definida e com resposta verificável — é o teto otimista do espectro, não a média do trabalho administrativo'
+  },
+  {
+    id: 'eloundou2024', eixo: 'exposicao', forca: 'alta',
+    autores: 'Eloundou, T.; Manning, S.; Mishkin, P.; Rock, D.', ano: 2024,
+    titulo: 'GPTs are GPTs: Labor market impact potential of LLMs',
+    veiculo: 'Science, 384(6702), 1306–1308', ref: 'doi:10.1126/science.adj0998',
+    desenho: 'Análise de exposição por tarefa (O*NET)', amostra: 'Ocupações da economia dos EUA',
+    efeito: '~80% da força de trabalho tem ao menos 10% das tarefas expostas; ~19% tem ao menos 50%',
+    escopo: 'Mapa de QUAIS tarefas são expostas — serve para ordenar categorias entre si',
+    limite: 'Exposição não é automação: mede o que o modelo pode tocar, não o ganho realizado'
+  },
+  {
+    id: 'acemoglu2024', eixo: 'cautela', forca: 'alta',
+    autores: 'Acemoglu, D.', ano: 2024,
+    titulo: 'The Simple Macroeconomics of AI',
+    veiculo: 'NBER WP 32487; Economic Policy, 40(121)', ref: 'nber.org/papers/w32487',
+    desenho: 'Modelo macro baseado em tarefas', amostra: 'Economia dos EUA',
+    efeito: 'Ganho agregado de PTF de no máximo 0,66% em 10 anos, possivelmente abaixo de 0,53%. ~20% das tarefas expostas, das quais só ~23% automatizáveis com lucro na década',
+    escopo: 'Contrapeso obrigatório às estimativas de experimento',
+    limite: 'É justamente o argumento de que efeitos medidos em tarefa fácil e curta não se transferem para o agregado — use para puxar as estimativas para baixo'
+  },
+  {
+    id: 'oecd2024', eixo: 'setor-publico', forca: 'média',
+    autores: 'OECD', ano: 2024,
+    titulo: 'Governing with Artificial Intelligence: Are governments ready?',
+    veiculo: 'OECD Artificial Intelligence Papers', ref: 'oecd.org — Governing with AI',
+    desenho: 'Levantamento institucional', amostra: '200 casos reais em 11 funções de governo',
+    efeito: 'Documenta automação de tarefas administrativas repetitivas e melhoria de serviços; sem efeito percentual medido',
+    escopo: 'Aderência ao contexto de administração pública, que os experimentos privados não têm',
+    limite: 'Qualitativo: serve para julgar plausibilidade no setor público, não para fixar percentual'
+  },
+  {
+    id: 'lacuna-demanda', eixo: 'demanda', forca: 'lacuna',
+    autores: '—', ano: null,
+    titulo: 'Ausência de evidência experimental sobre queda de demanda',
+    veiculo: 'Constatação do levantamento (11/09/2026)', ref: '—',
+    desenho: '—', amostra: '—',
+    efeito: 'Não foi localizado estudo revisado por pares medindo, com desenho experimental, quanto a IA reduz o NÚMERO de solicitações que chegam a um órgão público',
+    escopo: 'Vale para todo o eixo de demanda',
+    limite: 'O que existe é literatura de fornecedor sobre desvio de chamadas para autoatendimento, sem controle e com interesse comercial. Logo: estimativas de demanda devem ser conservadoras, marcadas como de baixa confiança, e tratadas como hipótese a validar com o próprio e-Protocolo'
+  }
+];
+
+const DFT_OTIM_MODELO = DFT_IA_MODELO;
+
+// a chave vem das mesmas fontes da aba de mapeamento
+function dftChaveIA() {
+  return iaChaveDoArquivo() || iaChaveSalva() || IA.chave || '';
+}
+
+const OTIM = { ocupado: false, erro: '', proposta: null, detalhe: null };
+
+function otimPromptSistema() {
+  return `Você apoia o Dimensionamento da Força de Trabalho (DFT) do Estado do Paraná.
+Sua tarefa é estimar, para cada CATEGORIA DE ATIVIDADE, dois percentuais distintos.
+
+AS DUAS DIMENSÕES — não as confunda, elas entram em contas diferentes:
+
+1. PRODUTIVIDADE (potProdutividade): quanto do TEMPO de execução some porque a
+   mesma entrega passa a ser feita mais rápido. A entrega continua existindo e
+   continua sendo demandada na mesma quantidade. Reduz horas por entrega.
+
+2. DEMANDA (potDemanda): quanto do NÚMERO de entregas deixa de ser demandado
+   porque a necessidade desaparece — o cidadão se autoatende, o dado passa a ser
+   consultado na fonte, a exigência é extinta. A entrega deixa de chegar.
+   Não é "fazer mais rápido"; é "não precisar mais fazer".
+
+REGRAS DE ESTIMATIVA
+- Ancore cada número no corpus fornecido. Prefira o estudo cujo ESCOPO mais se
+  parece com a categoria. Cite os ids usados.
+- Corrija para baixo o efeito de estudo cuja tarefa é mais curta, mais fechada e
+  mais verificável que o trabalho administrativo real. Copilot e redação isolada
+  são teto, não média.
+- Aplique a cautela de Acemoglu: exposição não é automação; parte do que é
+  tecnicamente automatizável não se realiza por norma, controle ou revisão
+  humana obrigatória. No setor público, ato administrativo costuma exigir
+  responsável identificado — isso limita o ganho.
+- DEMANDA: o corpus registra que NÃO há evidência experimental para esse eixo.
+  Seja conservador. Só proponha demanda acima de 10% quando o mecanismo de
+  desaparecimento for concreto e nomeável (ex.: autoatendimento que substitui
+  atendimento presencial; consulta a base que dispensa pedido de certidão).
+  Em atividade de decisão, fiscalização ou elaboração, demanda normalmente é 0.
+- Percentuais inteiros de 0 a 100. Nada de faixa: um número por dimensão.
+- Cada estimativa recebe confianca: "alta", "media" ou "baixa".
+
+RESPONDA SÓ COM O JSON, sem cercas de código, neste formato:
+{
+  "categorias": [
+    {
+      "categoriaId": "cat1",
+      "potProdutividade": 30,
+      "potDemanda": 5,
+      "confiancaProdutividade": "alta",
+      "confiancaDemanda": "baixa",
+      "racional": "2 a 4 frases explicando COMO chegou aos números: de qual estudo partiu, que ajuste aplicou e por quê.",
+      "fontes": ["noy2023", "acemoglu2024"],
+      "ressalva": "O principal fator que pode invalidar esta estimativa."
+    }
+  ],
+  "notaGeral": "Uma observação sobre o conjunto, se houver."
+}`;
+}
+
+function otimBlocosConteudo(s) {
+  const corpus = DFT_EVIDENCIA_IA.map(e => `--- [${e.id}] (eixo: ${e.eixo} · força: ${e.forca})
+${e.autores}${e.ano ? ' (' + e.ano + ')' : ''}. ${e.titulo}. ${e.veiculo}. ${e.ref}
+Desenho: ${e.desenho} · Amostra: ${e.amostra}
+Efeito medido: ${e.efeito}
+Escopo: ${e.escopo}
+Limite: ${e.limite}`).join('\n\n');
+
+  const cats = s.categoriasIA.map(c => {
+    const usos = s.entregas.filter(e => (e.categoriasAtividade || [])
+      .some(x => x.categoriaId === c.id));
+    const exemplos = usos.slice(0, 6).map(e => e.titulo);
+    return `--- ${c.id}: ${c.nome}
+Valores atuais no sistema: produtividade ${c.potProdutividade != null ? c.potProdutividade : 0}% · demanda ${c.potDemanda || 0}%
+Entregas que usam esta categoria: ${usos.length}${exemplos.length ? '\nExemplos: ' + exemplos.join('; ') : ''}`;
+  }).join('\n\n');
+
+  return [
+    { type: 'text', text: `--- CORPUS DE EVIDÊNCIA ---\n\n${corpus}` },
+    { type: 'text', text: `--- CATEGORIAS A ESTIMAR ---\n\n${cats}` },
+    { type: 'text', text: `Contexto: administração pública direta e autárquica do Estado do Paraná. ` +
+        `As entregas são atos e serviços administrativos, sujeitos a norma, tramitação e responsável identificado. ` +
+        `Estime agora as ${s.categoriasIA.length} categorias. Responda só o JSON.` }
+  ];
+}
+
+async function otimChamar(s) {
+  const chave = dftChaveIA();
+  if (!chave) throw new Error('Informe a chave da API na aba Mapear entregas de qualquer unidade, ' +
+    'ou deixe-a em chave-local.js.');
+
+  const resp = await fetch(DFT_IA_URL, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': chave,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: DFT_OTIM_MODELO,
+      max_tokens: 4000,
+      system: otimPromptSistema(),
+      messages: [{ role: 'user', content: otimBlocosConteudo(s) }]
+    })
+  });
+
+  if (!resp.ok) {
+    let detalhe = '';
+    try { const j = await resp.json(); detalhe = (j.error && j.error.message) || ''; }
+    catch (e) { /* corpo não era JSON */ }
+    if (resp.status === 401) throw new Error('Chave da API recusada.');
+    if (resp.status === 429) throw new Error('Limite de requisições por minuto atingido. Espere e tente de novo.');
+    if (resp.status === 400 && /credit|balance/i.test(detalhe)) {
+      throw new Error('A conta da API está sem créditos. Eles são comprados no console da Anthropic, ' +
+        'em Plans & Billing — assinatura do Claude.ai não cobre uso de API.');
+    }
+    throw new Error(`A API respondeu ${resp.status}. ${detalhe}`);
+  }
+
+  const dados = await resp.json();
+  const txt = (dados.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+  const limpo = txt.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  try { return JSON.parse(limpo); }
+  catch (e) {
+    const i = limpo.indexOf('{'), f = limpo.lastIndexOf('}');
+    if (i >= 0 && f > i) return JSON.parse(limpo.slice(i, f + 1));
+    throw new Error('A resposta não veio em JSON válido. Tente novamente.');
+  }
+}
+
+async function otimEstimar() {
+  const s = st();
+  OTIM.erro = ''; OTIM.ocupado = true; OTIM.proposta = null;
+  telaCargosIA();
+  try {
+    const r = await otimChamar(s);
+    const porId = {};
+    (r.categorias || []).forEach(c => { porId[c.categoriaId] = c; });
+    // só entra o que corresponde a uma categoria existente
+    OTIM.proposta = {
+      quando: new Date().toISOString(),
+      modelo: DFT_OTIM_MODELO,
+      notaGeral: r.notaGeral || '',
+      itens: s.categoriasIA.filter(c => porId[c.id]).map(c => Object.assign(
+        { categoriaId: c.id, nome: c.nome, antesProd: c.potProdutividade != null ? c.potProdutividade : 0, antesDem: c.potDemanda || 0 },
+        porId[c.id]
+      ))
+    };
+    if (!OTIM.proposta.itens.length) {
+      OTIM.erro = 'A IA não devolveu estimativa para nenhuma categoria conhecida.';
+      OTIM.proposta = null;
+    }
+  } catch (e) {
+    OTIM.erro = /Failed to fetch|NetworkError|Load failed/i.test(e.message)
+      ? 'O navegador não conseguiu chamar a API — a requisição não chegou a sair. ' +
+        'Abrindo a página do disco (file://) isso acontece: sirva a pasta com o abrir.cmd ou o abrir.sh.'
+      : e.message;
+  }
+  OTIM.ocupado = false;
+  telaCargosIA();
+}
+
+// grava a estimativa na categoria, junto do racional e das fontes, para que o
+// "?" continue explicando o número depois de salvo
+function otimSalvar() {
+  const s = st();
+  OTIM.proposta.itens.forEach(it => {
+    const c = s.categoriasIA.find(x => x.id === it.categoriaId);
+    if (!c) return;
+    c.potProdutividade = Math.max(0, Math.min(100, Number(it.potProdutividade) || 0));
+    c.potDemanda = Math.max(0, Math.min(100, Number(it.potDemanda) || 0));
+    c.evidencia = it.racional || c.evidencia || '';
+    c.baseIA = {
+      racional: it.racional || '', ressalva: it.ressalva || '',
+      fontes: it.fontes || [],
+      confiancaProdutividade: it.confiancaProdutividade || '',
+      confiancaDemanda: it.confiancaDemanda || '',
+      quando: OTIM.proposta.quando, modelo: OTIM.proposta.modelo
+    };
+  });
+  Store.salvar();
+  OTIM.proposta = null;
+  telaCargosIA();
+}
+
+/* ---------- o "?" de cada categoria: referências e racional ---------- */
+function otimAbreDetalhe(catId) {
+  const s = st();
+  const c = s.categoriasIA.find(x => x.id === catId);
+  const b = c && c.baseIA;
+  const fonte = id => DFT_EVIDENCIA_IA.find(e => e.id === id);
+  const usadas = b && b.fontes && b.fontes.length
+    ? b.fontes.map(fonte).filter(Boolean) : [];
+
+  const conf = v => !v ? '' : `<span class="conf conf-${E(v)}">${E(v)}</span>`;
+  const cx = document.createElement('div');
+  cx.className = 'modal-organograma';
+  cx.innerHTML = `
+    <div class="modal-org-caixa" role="dialog" aria-modal="true" aria-label="Base da estimativa">
+      <div class="modal-org-topo">
+        <span>Base da estimativa — ${E(c.nome)}</span>
+        <button class="btn-x" id="otim-fecha" title="Fechar" style="color:#fff">×</button>
+      </div>
+      <div class="otim-detalhe">
+        ${!b ? `<p class="vazio">Esta categoria ainda não tem estimativa gerada com IA. Os percentuais
+          atuais foram definidos à mão; use "Estimar com IA" para produzir números com racional e fontes.</p>` : `
+          <div class="otim-num">
+            <div><span>Produtividade</span><b>${fmtN(c.potProdutividade || 0)}%</b>${conf(b.confiancaProdutividade)}</div>
+            <div><span>Demanda</span><b>${fmtN(c.potDemanda || 0)}%</b>${conf(b.confiancaDemanda)}</div>
+          </div>
+          <h4>Racional</h4>
+          <p>${E(b.racional || '—')}</p>
+          ${b.ressalva ? `<h4>O que pode invalidar</h4><p>${E(b.ressalva)}</p>` : ''}
+          <h4>Referências usadas</h4>
+          ${usadas.length ? `<ol class="otim-refs">${usadas.map(f => `
+            <li>
+              <b>${E(f.autores)}${f.ano ? ' (' + f.ano + ')' : ''}.</b> ${E(f.titulo)}.
+              <i>${E(f.veiculo)}</i>. <span class="mono mini">${E(f.ref)}</span>
+              <span class="otim-tag tag-${E(f.forca)}">${E(f.forca === 'lacuna' ? 'lacuna de evidência' : 'força ' + f.forca)}</span>
+              <p class="otim-ef"><b>Efeito medido:</b> ${E(f.efeito)}</p>
+              <p class="otim-lim"><b>Limite:</b> ${E(f.limite)}</p>
+            </li>`).join('')}</ol>`
+            : '<p class="vazio">A resposta não indicou fontes.</p>'}
+          <p class="nota-calculo">Gerado em ${new Date(b.quando).toLocaleString('pt-BR')} pelo modelo
+            ${E(b.modelo)}. A estimativa é uma hipótese de trabalho: confirme com piloto antes de
+            usar como meta.</p>`}
+      </div>
+    </div>`;
+  document.body.appendChild(cx);
+  const fechar = () => cx.remove();
+  cx.addEventListener('click', e => { if (e.target === cx) fechar(); });
+  cx.querySelector('#otim-fecha').addEventListener('click', fechar);
+  document.addEventListener('keydown', function esc(e) {
+    if (e.key === 'Escape') { fechar(); document.removeEventListener('keydown', esc); }
+  });
+}
+
+/* ---------- o painel na tela de categorias ---------- */
+function otimPainel(podeEditar) {
+  if (!podeEditar) return '';
+  const p = OTIM.proposta;
+  const seta = (antes, depois) => {
+    const d = depois - antes;
+    return `<span class="mono">${fmtN(antes)}% → <b>${fmtN(depois)}%</b></span>` +
+      (d ? ` <span class="otim-delta ${d > 0 ? 'sobe' : 'desce'}">${d > 0 ? '+' : ''}${fmtN(d)}</span>` : '');
+  };
+  return `
+  <div class="card card-larga">
+    <h3>Estimar impacto com IA
+      ${tipInfo('Um modelo estima os dois percentuais de cada categoria apoiado num corpus de estudos com efeito medido — experimentos de produtividade, análise de exposição por tarefa e o contrapeso macro. Nada é gravado sem a sua confirmação, e cada número vem com racional e referências.')}</h3>
+    <p class="muted" style="font-size:13px">As estimativas se apoiam em ${DFT_EVIDENCIA_IA.filter(e => e.forca !== 'lacuna').length}
+      estudos com efeito medido. O eixo de demanda não tem evidência experimental equivalente — as
+      estimativas dele saem propositalmente conservadoras e marcadas como de baixa confiança.</p>
+    <div class="acoes">
+      <button class="btn" id="otim-estimar" ${OTIM.ocupado ? 'disabled' : ''}>
+        ${OTIM.ocupado ? 'Estimando…' : 'Estimar com IA'}</button>
+      <button class="btn btn-sec" id="otim-corpus">Ver o corpus de evidência</button>
+    </div>
+    ${OTIM.ocupado ? '<div class="ia-status"><span class="ia-girando"></span> Lendo o corpus e estimando as categorias. Costuma levar de 20 a 60 segundos.</div>' : ''}
+    ${OTIM.erro ? `<div class="banner erro" style="margin:12px 0 0">${E(OTIM.erro)}</div>` : ''}
+    ${!p ? '' : `
+      <div class="otim-proposta">
+        <h4>Proposta — revise antes de salvar</h4>
+        ${p.notaGeral ? `<p class="nota-calculo">${E(p.notaGeral)}</p>` : ''}
+        <div class="tabela-wrap"><table class="tabela">
+          <thead><tr><th>Categoria</th><th class="num">Produtividade</th><th class="num">Demanda</th>
+            <th>Racional</th></tr></thead>
+          <tbody>${p.itens.map(it => `<tr>
+            <td style="font-weight:600">${E(it.nome)}</td>
+            <td class="num">${seta(it.antesProd, Number(it.potProdutividade) || 0)}</td>
+            <td class="num">${seta(it.antesDem, Number(it.potDemanda) || 0)}</td>
+            <td class="otim-rac">${E(it.racional || '—')}</td>
+          </tr>`).join('')}</tbody>
+        </table></div>
+        <div class="acoes">
+          <button class="btn" id="otim-salvar">Salvar estimativas</button>
+          <button class="btn btn-sec" id="otim-descartar">Descartar</button>
+        </div>
+      </div>`}
+  </div>`;
+}
+
+function otimAbreCorpus() {
+  const cx = document.createElement('div');
+  cx.className = 'modal-organograma';
+  cx.innerHTML = `
+    <div class="modal-org-caixa" role="dialog" aria-modal="true" aria-label="Corpus de evidência">
+      <div class="modal-org-topo">
+        <span>Corpus de evidência — base das estimativas</span>
+        <button class="btn-x" id="otim-fecha-c" title="Fechar" style="color:#fff">×</button>
+      </div>
+      <div class="otim-detalhe">
+        <p class="nota-calculo">É este o material que o modelo recebe. Ele é obrigado a citar quais
+          itens usou em cada categoria.</p>
+        <ol class="otim-refs">${DFT_EVIDENCIA_IA.map(f => `
+          <li>
+            <b>${E(f.autores)}${f.ano ? ' (' + f.ano + ')' : ''}.</b> ${E(f.titulo)}.
+            <i>${E(f.veiculo)}</i>. <span class="mono mini">${E(f.ref)}</span>
+            <span class="otim-tag tag-${E(f.forca)}">${E(f.forca === 'lacuna' ? 'lacuna de evidência' : 'força ' + f.forca)}</span>
+            <p class="otim-ef"><b>Desenho:</b> ${E(f.desenho)} · <b>Amostra:</b> ${E(f.amostra)}</p>
+            <p class="otim-ef"><b>Efeito medido:</b> ${E(f.efeito)}</p>
+            <p class="otim-lim"><b>Limite:</b> ${E(f.limite)}</p>
+          </li>`).join('')}</ol>
+      </div>
+    </div>`;
+  document.body.appendChild(cx);
+  const fechar = () => cx.remove();
+  cx.addEventListener('click', e => { if (e.target === cx) fechar(); });
+  cx.querySelector('#otim-fecha-c').addEventListener('click', fechar);
+}
+
+function otimLiga(corpo, podeEditar) {
+  if (!podeEditar) return;
+  const bE = document.getElementById('otim-estimar');
+  if (bE) bE.addEventListener('click', otimEstimar);
+  const bC = document.getElementById('otim-corpus');
+  if (bC) bC.addEventListener('click', otimAbreCorpus);
+  const bS = document.getElementById('otim-salvar');
+  if (bS) bS.addEventListener('click', otimSalvar);
+  const bD = document.getElementById('otim-descartar');
+  if (bD) bD.addEventListener('click', () => { OTIM.proposta = null; telaCargosIA(); });
+}
+
 function telaCargosIA() {
   const s = st();
   const p = perfilAtual();
@@ -9693,6 +10166,8 @@ function iaCategorias(corpo, s, podeEditar) {
     <div id="gr-cats" style="margin-top:8px"></div>
   </div>
 
+  ${otimPainel(podeEditar)}
+
   <div class="card card-larga">
     <h3>Potencial por categoria de atividade
       ${tipInfo('Fração do esforço da categoria que representa oportunidade de otimização (automação ou apoio de IA). O potencial da ENTREGA = soma dos pesos das categorias × potencial de cada uma; aplicado com rampa linear no DFT projetado. Registre a evidência que sustenta cada estimativa.')}</h3>
@@ -9706,7 +10181,10 @@ function iaCategorias(corpo, s, podeEditar) {
       <tbody>${s.categoriasIA.map(c => {
     const m = pts.find(x => x.categoriaId === c.id);
     return `<tr>
-        <td style="font-weight:600">${E(c.nome)}</td>
+        <td style="font-weight:600">${E(c.nome)}
+          <button class="tip tip-btn" data-base="${c.id}" title="Ver racional e referências da estimativa"
+            aria-label="Base da estimativa de ${E(c.nome)}">?</button>
+          ${c.baseIA ? '<span class="otim-marca" title="estimado com IA">IA</span>' : ''}</td>
         <td class="num"><input type="number" min="0" max="100" class="input num-in curta" data-cat="${c.id}" data-pot="potProdutividade"
           value="${c.potProdutividade != null ? c.potProdutividade : (c.potencial || 0)}" ${podeEditar ? '' : 'disabled'}></td>
         <td class="num"><input type="number" min="0" max="100" class="input num-in curta" data-cat="${c.id}" data-pot="potDemanda"
@@ -9779,6 +10257,10 @@ function iaCategorias(corpo, s, podeEditar) {
     c.evidencia = inp.value;
     Store.salvar();
   }));
+  otimLiga(corpo, podeEditar);
+  corpo.querySelectorAll('[data-base]').forEach(b =>
+    b.addEventListener('click', () => otimAbreDetalhe(b.dataset.base)));
+
   const btnNova = document.getElementById('btn-nova-cat');
   if (btnNova) btnNova.addEventListener('click', () => {
     const nome = prompt('Nome da nova categoria de atividade:');
