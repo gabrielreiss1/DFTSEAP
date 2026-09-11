@@ -911,6 +911,25 @@ details.card-detalhe {
 .ia-arq-tam { font: 500 10.5px var(--mono); color: var(--faint); }
 .ia-cols { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; }
 .ia-cols label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.norm {
+  border: 1px solid var(--trilha); border-radius: 7px;
+  padding: 12px 14px; margin-top: 12px; background: rgba(19, 96, 216, .04);
+  border-left: 3px solid var(--azul);
+}
+.norm.ok { background: rgba(14, 158, 110, .07); border-left-color: var(--verde-txt); }
+.norm.falta { background: #fdf3dd; border-left-color: #b8860b; }
+.norm-topo { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.norm-topo b { font-size: 13px; color: var(--ink); }
+.norm-selo {
+  font-size: 10px; letter-spacing: .05em; text-transform: uppercase; font-weight: 700;
+  padding: 2px 7px; border-radius: 4px; background: rgba(19, 96, 216, .12); color: var(--azul);
+}
+.norm.ok .norm-selo { background: rgba(14, 158, 110, .16); color: var(--verde-txt); }
+.norm.falta .norm-selo { background: rgba(184, 134, 11, .16); color: #8a6410; }
+.norm p { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
+.norm-ressalva { color: var(--faint) !important; font-size: 11.5px !important; }
+.norm code { font-size: 11px; }
+
 .imp-resumo { list-style: none; display: flex; flex-direction: column; gap: 7px; margin: 10px 0 0; }
 .imp-resumo li { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--ink); }
 .imp-resumo .badge { min-width: 42px; justify-content: center; }
@@ -7227,6 +7246,88 @@ const DFT_IA_URL = 'https://api.anthropic.com/v1/messages';
 const DFT_IA_MAX_LINHAS = 600;   // linhas do e-Protocolo enviadas por vez
 const DFT_IA_MAX_MB = 28;        // limite prático de PDF da API
 
+/* ---------- normativo que define a competência da unidade ----------
+   Os núcleos setoriais não seguem o regulamento do órgão onde estão lotados, e
+   sim o do órgão dono do sistema — é o que diz o art. 28 do Regulamento da SEJU
+   (Decreto 8.807/2025): NPS pela SEPL, NICS pela CGE, NCS pela SECOM, NAS e
+   NRHS pela SEAP, NFS pela SEFA. As demais unidades seguem o regulamento do
+   próprio órgão. Com isso, 13 documentos cobrem as 303 unidades.
+
+   'arquivo' aponta para a pasta normativos/, ao lado do index.html: havendo o
+   PDF lá, a aba já abre com ele anexado e não é preciso subir nada. Sem o
+   arquivo, a aba mostra qual ato buscar e onde. O levantamento completo está em
+   docs/base-normativa.md. */
+const DFT_NUCLEO_SISTEMICO = {
+  NPS: 'SEPL', NICS: 'CGE', NCS: 'SECOM', NAS: 'SEAP', NRHS: 'SEAP', NFS: 'SEFA'
+};
+
+const DFT_NORMATIVOS = {
+  AMEP:     { ato: 'Decreto 12.038, de 28/11/2025' },
+  CEP:      { ato: 'Regimento Escolar do CEP (2022)', arquivo: 'CEP_regimento_escolar_2022.pdf',
+              onde: 'https://www.cep.pr.gov.br/Pagina/Documentos-oficiais' },
+  CGE:      { ato: 'Decreto 2.741, de 19/09/2019',
+              onde: 'https://www.cge.pr.gov.br/Pagina/Controladoria-Geral-do-Estado-Legislacao' },
+  FUNDEPAR: { ato: 'Decreto 3.270, de 24/08/2023; Decreto 8.362/2024',
+              onde: 'https://www.fundepar.pr.gov.br/Pagina/Competencias' },
+  IPARDES:  { ato: 'Decreto 3.203, de 22/08/2023 (DIOE 11.487)' },
+  SEAP:     { ato: 'Decreto 3.888, de 21/01/2020' },
+  SECOM:    { ato: 'Decreto 4.276/2023', onde: 'https://www.comunicacao.pr.gov.br/Pagina/Legislacao' },
+  SEED:     { ato: 'Decreto 8.425, de 07/12/2017', ressalva: 'anterior à Lei 21.352/2023 — confirmar vigência' },
+  SEFA:     { ato: 'Decreto 12.279, de 16/12/2025; Resolução SEFA 439/2026',
+              onde: 'https://www.fazenda.pr.gov.br/Pagina/Resolucoes-e-Portarias-SEFA-e-REPR' },
+  SEJU:     { ato: 'Decreto 8.807, de 30/01/2025', arquivo: 'SEJU_decreto_8807_2025.pdf' },
+  SEPL:     { ato: 'Decreto de 16/09/2025', arquivo: 'SEPL_decreto_8657_2018.pdf',
+              ressalva: 'o arquivo é o Decreto 8.657/2018, superado: não traz DDI, DAG nem UTEC' },
+  SESA:     { ato: 'Decreto 9.921, de 23/01/2014', ressalva: 'anterior à Lei 21.352/2023 — confirmar vigência' },
+  SETU:     { ato: 'Decreto 7.042, de 12/08/2024' }
+};
+
+function normativoDaUnidade(u) {
+  const sistemica = DFT_NUCLEO_SISTEMICO[u.sigla];
+  const fonte = sistemica || u.orgao;
+  const n = DFT_NORMATIVOS[fonte];
+  return n ? Object.assign({ fonte, sistemica: !!sistemica }, n) : null;
+}
+
+// o PDF é lido uma vez por sessão e reaproveitado entre unidades do mesmo órgão
+const IA_NORM_CACHE = {};
+
+function iaBaixaNormativo(arquivo) {
+  if (IA_NORM_CACHE[arquivo]) return IA_NORM_CACHE[arquivo];
+  IA_NORM_CACHE[arquivo] = fetch('normativos/' + encodeURIComponent(arquivo))
+    .then(r => { if (!r.ok) throw new Error('sem o arquivo'); return r.blob(); })
+    .then(b => new Promise((ok, err) => {
+      const fr = new FileReader();
+      fr.onload = () => ok({ base64: String(fr.result).split(',')[1], tamanho: b.size });
+      fr.onerror = () => err(new Error('não foi possível ler ' + arquivo));
+      fr.readAsDataURL(b);
+    }))
+    .catch(e => { IA_NORM_CACHE[arquivo] = null; throw e; });
+  return IA_NORM_CACHE[arquivo];
+}
+
+/* Anexa o regulamento da unidade ao contexto, se houver arquivo na pasta.
+   Roda ao abrir a aba. Só repinta a tela quando de fato anexou algo, para não
+   entrar em laço com o próprio render. */
+async function iaAnexaNormativo(u, uId) {
+  const n = normativoDaUnidade(u);
+  if (!n || !n.arquivo) return;
+  if (IA.ctx.some(a => a.normativo === n.arquivo)) return;   // já anexado
+  if (IA.semNormativo[n.arquivo]) return;                    // já falhou antes
+  try {
+    const { base64, tamanho } = await iaBaixaNormativo(n.arquivo);
+    if (IA.ctx.some(a => a.normativo === n.arquivo)) return;  // corrida entre renders
+    IA.ctx.unshift({
+      nome: n.arquivo, tamanho, papel: 'Normativo', fonte: 'unidade',
+      normativo: n.arquivo, base64
+    });
+    if (document.getElementById('ia-drop-ctx')) telaUnidade(uId, 'mapeamento');
+  } catch (e) {
+    IA.semNormativo[n.arquivo] = true;
+    if (document.getElementById('ia-drop-ctx')) telaUnidade(uId, 'mapeamento');
+  }
+}
+
 /* ---------- de onde vem a chave da API ----------
    O DFT é uma página estática que fala direto com a Anthropic, então qualquer
    chave escrita aqui dentro seria lida por quem abrisse o arquivo. A chave
@@ -7266,8 +7367,20 @@ const IA = {
   propostas: null,  // resposta da IA já parseada
   descartados: null,
   erro: '',
-  ocupado: false
+  ocupado: false,
+  unidadeId: null,   // de quem é o contexto atual (ver iaTrocaUnidade)
+  semNormativo: {}   // arquivos de regulamento ausentes da pasta normativos/
 };
+
+/* Os arquivos são evidência SOBRE uma unidade: levá-los para outra faria a IA
+   propor entregas a partir do documento errado. Ao abrir a aba de outra
+   unidade, o contexto recomeça. A chave da API não é evidência e permanece. */
+function iaTrocaUnidade(uId) {
+  if (IA.unidadeId === uId) return;
+  IA.unidadeId = uId;
+  IA.ctx = []; IA.proto = null;
+  IA.propostas = null; IA.descartados = null; IA.erro = '';
+}
 
 const iaKB = n => n < 1024 ? n + ' B'
   : n < 1048576 ? (n / 1024).toFixed(0) + ' KB' : (n / 1048576).toFixed(1) + ' MB';
@@ -7562,6 +7675,7 @@ async function iaChamar(u, s) {
 function abaMapeamento(alvo, uId) {
   const s = st();
   const u = Calc.unidade(s, uId);
+  iaTrocaUnidade(uId);
 
   // IA.ctx guarda tudo o que vai como anexo para a IA, inclusive um extrato em
   // PDF. Na tela, porém, cada arquivo tem de aparecer sob o passo em que foi
@@ -7603,6 +7717,34 @@ function abaMapeamento(alvo, uId) {
 
   const podeRodar = IA.ctx.length > 0 || IA.proto;
 
+  // o regulamento que define a competência desta unidade — anexado sozinho
+  // quando o PDF está na pasta normativos/, indicado quando não está
+  const norm = normativoDaUnidade(u);
+  const normAnexado = norm && IA.ctx.some(a => a.normativo === norm.arquivo);
+  const blocoNorm = !norm ? '' : `
+    <div class="norm ${normAnexado ? 'ok' : IA.semNormativo[norm.arquivo] || !norm.arquivo ? 'falta' : 'lendo'}">
+      <div class="norm-topo">
+        <span class="norm-selo">${normAnexado ? 'anexado' : 'a anexar'}</span>
+        <b>${E(norm.ato)}</b>
+      </div>
+      <p>${!norm.sistemica
+          ? `Regulamento de ${E(norm.fonte)} — traz as competências das unidades do órgão.`
+          : norm.fonte === u.orgao
+            ? `${E(u.sigla)} é núcleo setorial, e ${E(norm.fonte)} é o órgão central do sistema:
+               a competência sai do regulamento do próprio órgão — art. 28 do Regulamento da SEJU.`
+            : `${E(u.sigla)} é núcleo setorial: a competência está no regulamento de
+               <b>${E(norm.fonte)}</b>, órgão central do sistema, e não no de ${E(u.orgao)}
+               — art. 28 do Regulamento da SEJU.`}</p>
+      ${norm.ressalva ? `<p class="norm-ressalva">${E(norm.ressalva)}</p>` : ''}
+      ${normAnexado ? '' : norm.arquivo
+        ? `<p class="norm-ressalva">O arquivo <code>normativos/${E(norm.arquivo)}</code> não foi
+           encontrado — sirva a pasta por um servidor local para que ele seja anexado sozinho.</p>`
+        : `<p class="norm-ressalva">Ainda não reunido. Baixe o ato${norm.onde
+             ? ` em <a href="${E(norm.onde)}" target="_blank" rel="noopener">${E(new URL(norm.onde).hostname)}</a>`
+             : ' no <a href="https://www.legislacao.pr.gov.br" target="_blank" rel="noopener">Sistema Legislação</a>'},
+           salve em <code>normativos/</code> e ele passa a vir anexado; ou suba abaixo, desta vez.</p>`}
+    </div>`;
+
   // a chave só aparece como campo quando não veio pronta do arquivo local
   const chaveDeArquivo = !!iaChaveDoArquivo();
   const blocoChave = chaveDeArquivo ? `
@@ -7638,6 +7780,7 @@ function abaMapeamento(alvo, uId) {
       <small>Portaria, decreto, lei, regimento, plano estratégico — até ${DFT_IA_MAX_MB} MB cada</small>
     </div>
     <input type="file" id="ia-file-ctx" accept=".pdf,application/pdf" multiple hidden>
+    ${blocoNorm}
     ${listaCtx}
   </div>
 
@@ -7724,6 +7867,7 @@ function abaMapeamento(alvo, uId) {
 
   iaPintaStatus();
   if (IA.propostas) iaPintaPropostas(uId);
+  iaAnexaNormativo(u, uId);
 }
 
 async function iaAddCtx(files, uId) {

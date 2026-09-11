@@ -82,7 +82,9 @@ convém checar no Sistema Legislação antes de usar como base.
 
 ## Documentos já reunidos
 
-Estão em `docs/normativos/`, versionados junto do projeto:
+Estão em `normativos/`, ao lado do `index.html`, versionados junto do projeto.
+O DFT lê essa pasta: havendo ali o arquivo do órgão, a aba *Mapear entregas*
+**já abre com o regulamento anexado** no passo 1, sem precisar subir nada.
 
 | Arquivo | Conteúdo |
 |---|---|
@@ -102,6 +104,22 @@ Estão em `docs/normativos/`, versionados junto do projeto:
 - CGE · legislação — <https://www.cge.pr.gov.br/Pagina/Controladoria-Geral-do-Estado-Legislacao>
 - SECOM · legislação — <https://www.comunicacao.pr.gov.br/Pagina/Legislacao>
 - SEFA · resoluções — <https://www.fazenda.pr.gov.br/Pagina/Resolucoes-e-Portarias-SEFA-e-REPR>
+
+## Como o DFT usa isso
+
+Cada unidade sabe qual é o seu normativo. A aba *Mapear entregas* mostra o ato
+no passo 1 e, quando o PDF está em `normativos/`, já o anexa sozinho — inclusive
+aplicando a regra dos núcleos setoriais: abrir o NAS da CGE anexa o regulamento
+da SEAP, não o da CGE. Faltando o arquivo, o passo indica qual ato buscar e onde,
+e aceita o upload manual.
+
+Para acrescentar um documento novo: salve o PDF em `normativos/` e registre o
+nome do arquivo em `DFT_NORMATIVOS`, no `index.html`. Ele passa a vir anexado
+para todas as unidades daquele órgão.
+
+Vale lembrar que isso exige servir a pasta — pelo `file://` o navegador bloqueia
+a leitura do PDF, do mesmo modo que bloqueia a chamada à API. Use o `abrir.cmd`
+ou o `abrir.sh`.
 
 ## Como usar no DFT
 
