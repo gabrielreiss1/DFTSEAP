@@ -911,6 +911,35 @@ details.card-detalhe {
 .ia-arq-tam { font: 500 10.5px var(--mono); color: var(--faint); }
 .ia-cols { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; }
 .ia-cols label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+/* ---------- barra de progresso do mapeamento ---------- */
+.ia-prog { margin: 14px 0 0; }
+.ia-prog-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 7px; }
+.ia-prog-fase { font-size: 13px; font-weight: 700; color: var(--ink); }
+.ia-prog-tempo { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ia-prog-trilha { height: 7px; border-radius: 99px; background: var(--trilha); overflow: hidden; }
+.ia-prog-barra {
+  height: 100%; border-radius: 99px; background: var(--grad);
+  transition: width .45s linear;
+}
+.ia-prog-nota { font-size: 11.5px; color: var(--faint); margin: 7px 0 0; }
+@media (prefers-reduced-motion: reduce) { .ia-prog-barra { transition: none; } }
+
+/* ---------- indicadores ---------- */
+.prop-inds {
+  margin-top: 10px; padding: 9px 11px; border-radius: 7px;
+  background: rgba(19, 96, 216, .05); border: 1px solid var(--trilha);
+}
+.prop-inds > b { font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.prop-inds ul { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 4px; }
+.prop-inds li { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 12.5px; }
+.prop-ind-nome { color: var(--ink); font-weight: 600; }
+.prop-ind-fonte { font: 500 10.5px var(--mono); color: var(--muted); }
+.prop-ind-nota { display: block; margin-top: 7px; font-size: 11px; color: var(--faint); }
+.ind-linha { gap: 8px; flex-wrap: wrap; }
+.ind-linha .fi-nome { flex: 2 1 240px; }
+.ind-linha .fi-qtd { width: 110px; }
+.ind-linha .fi-fonte { flex: 1 1 170px; }
+
 /* ---------- estimativa de impacto da IA (tela de otimização) ---------- */
 .tip-btn {
   border: none; cursor: pointer; font: inherit; vertical-align: middle;
@@ -4797,6 +4826,21 @@ function abaEntregas(alvo, uId) {
   }));
 }
 
+function linhaIndicador(ind, i) {
+  ind = ind || {};
+  // o id viaja no DOM: casar por posição quebra assim que uma linha é removida
+  return `<div class="linha-form ind-linha" data-fi="${i}" data-id="${E(ind.id || '')}">
+    <input type="text" class="input fi-nome" value="${E(ind.nome || '')}"
+      placeholder="O que se conta — ex.: Pregões finalizados">
+    <input type="number" class="input num-in fi-qtd" min="0" value="${ind.quantidade == null ? '' : ind.quantidade}"
+      placeholder="quantidade" title="Quantidade levantada pelo analista">
+    <input type="text" class="input fi-fonte" value="${E(ind.fonte || '')}"
+      placeholder="Fonte do número — ex.: e-Protocolo">
+    ${ind.origem === 'ia' ? '<span class="otim-marca" title="sugerido pela IA">IA</span>' : ''}
+    <button class="btn-x fi-remove" title="Remover indicador">×</button>
+  </div>`;
+}
+
 function formEntrega(uId, entregaId) {
   const s = st();
   const e = entregaId ? s.entregas.find(x => x.id === entregaId) : {
@@ -4839,6 +4883,12 @@ function formEntrega(uId, entregaId) {
       </div>`;
     }).join('')}</div>
     <p class="nota-calculo" id="fe-cats-soma"></p>
+    <h4>Indicadores da entrega ${tipInfo('O que se conta para medir o volume desta entrega. A IA sugere o indicador e onde o número provavelmente está; a quantidade é levantada pelo analista. Serve de lastro para o volume informado acima.')}</h4>
+    <div id="fe-inds">${(e.indicadores || []).map((ind, i) => linhaIndicador(ind, i)).join('')}</div>
+    <button class="btn-mini" id="fe-add-ind">+ indicador</button>
+    <p class="nota-calculo">Os indicadores não entram no cálculo: eles justificam o volume
+      declarado e deixam rastro de onde o número veio.</p>
+
     <h4>Cargos que atuam na entrega</h4>
     <div id="fe-cargos">${linhasCargo.map((c, i) => `
       <div class="linha-form" data-fc="${i}">
@@ -4853,6 +4903,16 @@ function formEntrega(uId, entregaId) {
       <button class="btn btn-sec" id="fe-cancelar">Cancelar</button>
     </div>
   </div>`;
+
+  const boxInds = document.getElementById('fe-inds');
+  const ligaRemoveInd = () => boxInds.querySelectorAll('.fi-remove').forEach(b =>
+    b.onclick = () => b.closest('.ind-linha').remove());
+  ligaRemoveInd();
+  document.getElementById('fe-add-ind').addEventListener('click', () => {
+    boxInds.insertAdjacentHTML('beforeend', linhaIndicador({}, boxInds.children.length));
+    ligaRemoveInd();
+    boxInds.lastElementChild.querySelector('.fi-nome').focus();
+  });
 
   // categorias de atividade: divisão equitativa ao marcar; editar um peso redistribui o restante
   const boxCats = document.getElementById('fe-cats');
@@ -4930,6 +4990,22 @@ function formEntrega(uId, entregaId) {
       pesos[0] += 100 - Calc.sum(pesos);
       categoriasAtividade = idsCat.map((id, i) => ({ categoriaId: id, peso: pesos[i] }));
     }
+    const porId = {};
+    (e.indicadores || []).forEach(x => { if (x.id) porId[x.id] = x; });
+    const indicadores = [...boxInds.querySelectorAll('.ind-linha')].map((div, i) => {
+      const nome = div.querySelector('.fi-nome').value.trim();
+      const q = div.querySelector('.fi-qtd').value;
+      const ant = porId[div.dataset.id] || {};
+      return {
+        id: ant.id || 'i' + Date.now().toString(36) + i,
+        nome, unidade: ant.unidade || '',
+        quantidade: q === '' ? null : Number(q),
+        fonte: div.querySelector('.fi-fonte').value.trim(),
+        // a marca só se mantém enquanto o nome sugerido pela IA não for reescrito
+        origem: ant.origem === 'ia' && nome === (ant.nome || '') ? 'ia' : 'analista'
+      };
+    }).filter(ind => ind.nome);
+
     const dados = {
       titulo, descricao: document.getElementById('fe-desc').value.trim(),
       volumeMensal: (() => {
@@ -4941,7 +5017,7 @@ function formEntrega(uId, entregaId) {
       demandaReprimida: Number(document.getElementById('fe-reprimida').value) || 0,
       mesRef: document.getElementById('fe-mes').value || `${s.anoReferencia}-01`,
       percentualManual: pctRaw === '' ? null : Number(pctRaw), cargos,
-      categoriasAtividade,
+      categoriasAtividade, indicadores,
       automacao: { horizonteAnos: Number(document.getElementById('fe-auto-anos').value) || 5 }
     };
     if (entregaId) Object.assign(s.entregas.find(x => x.id === entregaId), dados);
@@ -7427,6 +7503,7 @@ const IA = {
   erro: '',
   ocupado: false,
   unidadeId: null,   // de quem é o contexto atual (ver iaTrocaUnidade)
+  prog: null,        // {pct, fase, t0, timer} enquanto a IA roda
   semNormativo: {}   // arquivos de regulamento ausentes da pasta normativos/
 };
 
@@ -7621,7 +7698,14 @@ depois. Este é o formato exato:
       "unidadeVolume": "o que está sendo contado (ex.: decretos, processos, relatórios)",
       "confianca": "alta" ou "media" ou "baixa",
       "fonte": "onde a evidência apareceu (documento e/ou assunto do e-Protocolo)",
-      "justificativa": "por que isto passa nos quatro testes de entrega"
+      "justificativa": "por que isto passa nos quatro testes de entrega",
+      "indicadores": [
+        {
+          "nome": "o que se conta, com verbo no particípio (ex.: Pregões finalizados)",
+          "unidade": "a coisa contada (ex.: pregões, dispensas, pareceres)",
+          "fonte": "onde o número provavelmente está (ex.: e-Protocolo, GMS, folha, planilha da divisão)"
+        }
+      ]
     }
   ],
   "descartados": [
@@ -7632,7 +7716,18 @@ depois. Este é o formato exato:
 Em "descartados", liste de 5 a 15 candidatos recusados — principalmente assuntos de alto
 volume do e-Protocolo e incisos de competência que você não converteu. Essa lista é o que
 permite auditar o critério de corte, então ela importa tanto quanto as entregas.
-Preencha "volumeEstimado" apenas quando o e-Protocolo der base numérica; caso contrário, null.`;
+Preencha "volumeEstimado" apenas quando o e-Protocolo der base numérica; caso contrário, null.
+
+INDICADORES — de 2 a 4 por entrega
+Indicador é o que se CONTA para medir o volume daquela entrega, não uma meta nem um
+percentual de qualidade. Tem de ser um número inteiro que alguém consiga levantar.
+Para "Análise de processo licitatório", por exemplo: pregões finalizados, dispensas
+deferidas, inexigibilidades analisadas, atas registradas.
+Regras: um indicador conta UMA coisa; nomeie a fonte provável do número, de preferência
+um sistema que o Estado já usa (e-Protocolo, GMS, SEI, folha) — se não houver sistema,
+diga onde o dado costuma ficar. Não proponha indicador de satisfação, de prazo médio nem
+de percentual: aqui interessa quantidade. Deixe o valor de fora — quem preenche é o
+analista.`;
 }
 
 function iaBlocosConteudo(u, s) {
@@ -7985,12 +8080,53 @@ async function iaAddProto(file, uId) {
   telaUnidade(uId, 'mapeamento');
 }
 
+/* A chamada é única e não devolve progresso, então a barra mede TEMPO, não
+   trabalho concluído: avança por estimativa e para em 92% até a resposta chegar.
+   Por isso a tela mostra o tempo decorrido — é o único número honesto aqui. */
+const IA_FASES = [
+  [0,  'Enviando os documentos'],
+  [8,  'Lendo o normativo da unidade'],
+  [20, 'Cruzando com o e-Protocolo'],
+  [38, 'Separando entregas de assuntos'],
+  [52, 'Redigindo as propostas e os indicadores']
+];
+
+function iaComecaProgresso(uId) {
+  iaParaProgresso();
+  IA.prog = { pct: 0, fase: IA_FASES[0][1], t0: Date.now(), timer: null };
+  IA.prog.timer = setInterval(() => {
+    if (!IA.prog) return;
+    const seg = (Date.now() - IA.prog.t0) / 1000;
+    // sobe rápido no começo e vai freando: 63% aos 30s, 86% aos 60s, teto em 92%
+    IA.prog.pct = Math.min(92, 100 * (1 - Math.exp(-seg / 30)));
+    const f = IA_FASES.filter(x => seg >= x[0]).pop();
+    IA.prog.fase = f ? f[1] : IA_FASES[0][1];
+    iaPintaStatus();
+  }, 450);
+}
+
+function iaParaProgresso() {
+  if (IA.prog && IA.prog.timer) clearInterval(IA.prog.timer);
+  IA.prog = null;
+}
+
 function iaPintaStatus() {
   const box = document.getElementById('ia-status');
   if (!box) return;
   if (IA.ocupado) {
-    box.innerHTML = `<div class="ia-status"><span class="ia-girando"></span>
-      Lendo os documentos e cruzando com o e-Protocolo. Costuma levar de 20 a 60 segundos.</div>`;
+    const p = IA.prog || { pct: 0, fase: 'Preparando', t0: Date.now() };
+    const seg = Math.round((Date.now() - p.t0) / 1000);
+    box.innerHTML = `
+      <div class="ia-prog" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+           aria-valuenow="${Math.round(p.pct)}" aria-label="Progresso do mapeamento">
+        <div class="ia-prog-topo">
+          <span class="ia-prog-fase">${E(p.fase)}</span>
+          <span class="ia-prog-tempo mono">${seg}s</span>
+        </div>
+        <div class="ia-prog-trilha"><div class="ia-prog-barra" style="width:${p.pct.toFixed(1)}%"></div></div>
+        <p class="ia-prog-nota">Costuma levar de 20 a 60 segundos. A barra é uma estimativa por
+          tempo — a API responde de uma vez só, sem informar o quanto já andou.</p>
+      </div>`;
   } else if (IA.erro) {
     box.innerHTML = `<div class="banner erro" style="margin:12px 0 0">${E(IA.erro)}</div>`;
   } else {
@@ -8002,7 +8138,8 @@ async function iaRodar(uId) {
   const s = st();
   const u = Calc.unidade(s, uId);
   IA.erro = '';
-  IA.chave = iaChaveDoArquivo() || IA.chave;
+  // mesma resolução da tela de otimização: arquivo, depois navegador, depois digitada
+  IA.chave = dftChaveIA();
   if (!IA.chave) { IA.erro = 'Informe a chave da API para continuar.'; iaPintaStatus(); return; }
   if (IA.proto && !IA.proto.selecionadas.size) {
     IA.erro = 'Marque ao menos uma coluna do e-Protocolo.'; iaPintaStatus(); return;
@@ -8011,6 +8148,7 @@ async function iaRodar(uId) {
   IA.ocupado = true; IA.propostas = null; IA.descartados = null;
   document.getElementById('ia-rodar').disabled = true;
   document.getElementById('ia-resultado').innerHTML = '';
+  iaComecaProgresso(uId);
   iaPintaStatus();
 
   try {
@@ -8027,6 +8165,7 @@ async function iaRodar(uId) {
         'python3 -m http.server; alguma extensão, antivírus ou proxy da rede bloqueou a chamada; ou a máquina está sem internet.'
       : e.message;
   }
+  iaParaProgresso();
   IA.ocupado = false;
   telaUnidade(uId, 'mapeamento');
 }
@@ -8069,6 +8208,14 @@ function iaPintaPropostas(uId) {
         <span class="badge mini badge-azul">${p.tipo === 'apoio' ? 'apoio' : 'finalística'}</span>
         ${p.unidadeVolume ? `<span class="badge mini badge-azul">conta: ${E(p.unidadeVolume)}</span>` : ''}
       </div>
+      ${(p.indicadores || []).length ? `
+        <div class="prop-inds">
+          <b>Indicadores sugeridos</b>
+          <ul>${p.indicadores.slice(0, 4).map(ind => `
+            <li><span class="prop-ind-nome">${E(ind.nome || '')}</span>
+              ${ind.fonte ? `<span class="prop-ind-fonte">${E(ind.fonte)}</span>` : ''}</li>`).join('')}</ul>
+          <span class="prop-ind-nota">A quantidade e a fonte de cada um ficam para preencher na entrega.</span>
+        </div>` : ''}
       <div class="prop-edit">
         <input type="text" class="input prop-titulo" data-i="${i}" value="${E(p.titulo || '')}"
           title="Título que será cadastrado">
@@ -8195,6 +8342,15 @@ function iaCadastrar(uId) {
       mesRef: `${s.anoReferencia}-01`,
       percentualManual: null,
       categoriasAtividade: null,
+      // a IA sugere o que contar e onde buscar; a quantidade é do analista
+      indicadores: (p.indicadores || []).slice(0, 6).map((ind, k) => ({
+        id: 'i' + Date.now().toString(36) + k,
+        nome: String(ind.nome || '').trim(),
+        unidade: String(ind.unidade || '').trim(),
+        quantidade: null,
+        fonte: String(ind.fonte || '').trim(),
+        origem: 'ia'
+      })).filter(ind => ind.nome),
       automacao: { horizonteAnos: 5 }
     });
     p._importada = true;
