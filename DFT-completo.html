@@ -912,6 +912,11 @@ details.card-detalhe {
 .ia-arq-tam { font: 500 10.5px var(--mono); color: var(--faint); }
 .ia-cols { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; }
 .ia-cols label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.btn-perigo-fraco { color: var(--vermelho-txt); border-color: rgba(226, 86, 79, .35); }
+.btn-perigo-fraco:hover { background: rgba(226, 86, 79, .07); }
+
+.chart-nota { font-size: 11.5px; color: var(--faint); margin: 6px 0 0; text-align: center; }
+
 /* ---------- barra de progresso do mapeamento ---------- */
 .ia-prog { margin: 14px 0 0; }
 .ia-prog-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin-bottom: 7px; }
@@ -3657,7 +3662,11 @@ const Charts = (() => {
     });
     marcas(escX, maxX === 100).forEach(t => {
       if (t > escX) return;
-      const lx = svgEl('text', { x: x(t), y: H - mB + 18, 'text-anchor': 'middle', class: 'tick' });
+      // na origem os dois eixos escrevem o mesmo valor no mesmo lugar: o de X
+      // encosta à esquerda para não ficar por cima do de Y
+      const naOrigem = t === 0;
+      const lx = svgEl('text', { x: x(t) + (naOrigem ? -4 : 0), y: H - mB + 18,
+        'text-anchor': naOrigem ? 'start' : 'middle', class: 'tick' });
       lx.textContent = fX(t);
       svg.appendChild(lx);
     });
@@ -3666,9 +3675,22 @@ const Charts = (() => {
     svg.appendChild(svgEl('line', { x1: mL, x2: W - mR, y1: y(escY / 2), y2: y(escY / 2), stroke: '#c3cfda', 'stroke-width': 1 }));
 
     const maxTam = Math.max(...pontos.map(p => p.tam), 1);
-    const rotulos = []; // caixas já ocupadas, p/ desviar rótulos que colidem
+    // Os pontos se amontoam quando um deles domina a escala, e aí os rótulos
+    // colidem entre si e invadem o eixo. Em vez de só empurrar para baixo, cada
+    // rótulo tenta oito posições ao redor da bolha, sempre dentro da área do
+    // gráfico; o que não couber em nenhuma fica sem rótulo — o número segue no
+    // tooltip e na tabela, e um rótulo ilegível por cima de outro não informa.
+    const CH = 6.2, ALT = 13;                       // largura média do caractere e altura da linha
+    const ocupadas = [];
+    const cabe = c => c.x1 >= mL + 2 && c.x2 <= W - mR - 2 && c.y1 >= mT + 2 && c.y2 <= H - mB - 6
+      && !ocupadas.some(o => c.x1 < o.x2 && c.x2 > o.x1 && c.y1 < o.y2 && c.y2 > o.y1);
+
+    const raio = p => 7 + 15 * Math.sqrt(Math.max(0, p.tam) / maxTam);
+    // as bolhas maiores escolhem posição primeiro: são as que mais importam ler
+    const ordem = pontos.map((p, i) => i).sort((a, b) => pontos[b].tam - pontos[a].tam);
+
     pontos.forEach(p => {
-      const r = 7 + 15 * Math.sqrt(Math.max(0, p.tam) / maxTam);
+      const r = raio(p);
       svg.appendChild(svgEl('circle', { cx: x(p.x), cy: y(p.y), r: r + 2, fill: SUPERFICIE }));
       const b = svgEl('circle', { cx: x(p.x), cy: y(p.y), r, fill: p.cor, 'fill-opacity': .82 });
       b.addEventListener('mousemove', ev => mostraTip(
@@ -3677,27 +3699,79 @@ const Charts = (() => {
         (p.sub ? `<br>${p.sub}` : '') + (p.grupo ? `<br>${p.grupo}` : ''), ev));
       b.addEventListener('mouseleave', escondeTip);
       svg.appendChild(b);
-      const naBorda = x(p.x) > W - 150;
-      const lx = naBorda ? x(p.x) - r - 5 : x(p.x) + r + 5;
-      const largura = p.label.length * 6.4;
-      let ly = y(p.y) + 4;
-      // desvia verticalmente enquanto colidir com um rótulo já posicionado
-      const colide = () => rotulos.some(q =>
-        Math.abs(q.y - ly) < 14 && (naBorda ? lx - largura : lx) < q.x2 && (naBorda ? lx : lx + largura) > q.x1);
-      for (let tent = 0; colide() && tent < 6; tent++) ly += 15;
-      rotulos.push({ x1: naBorda ? lx - largura : lx, x2: naBorda ? lx : lx + largura, y: ly });
-      const lb = svgEl('text', { x: lx, y: ly, class: 'val', 'text-anchor': naBorda ? 'end' : 'start' });
-      lb.textContent = p.label;
+      // a bolha também é obstáculo: rótulo por cima dela fica ilegível
+      ocupadas.push({ x1: x(p.x) - r, x2: x(p.x) + r, y1: y(p.y) - r, y2: y(p.y) + r });
+    });
+
+    // getBBox só mede o que está no documento, e estimar a largura pelo número de
+    // caracteres erra o suficiente para dois rótulos se sobreporem
+    container.appendChild(svg);
+    const escalaVB = svg.getBoundingClientRect().width / W || 1;
+
+    let omitidos = 0;
+    ordem.forEach(i => {
+      const p = pontos[i], r = raio(p);
+      const texto = p.label.length > 34 ? p.label.slice(0, 33) + '…' : p.label;
+      const lb = svgEl('text', { x: -9999, y: -9999, class: 'val' });
+      lb.textContent = texto;
       svg.appendChild(lb);
+      const cr = lb.getBoundingClientRect();
+      // sem layout (aba oculta, por exemplo) cai na estimativa por caractere
+      const larg = (cr.width / escalaVB) || texto.length * CH;
+      const alt = (cr.height / escalaVB) || ALT;
+      const acima = alt * .8, abaixo = alt * .25;   // y do texto é a linha de base
+      const cx = x(p.x), cy = y(p.y);
+      // Anéis cada vez mais afastados: perto da bolha primeiro e, se o ponto
+      // estiver num aglomerado, longe — puxando o rótulo para o espaço vazio com
+      // uma linha-guia. Melhor um rótulo distante mas ligado do que nenhum.
+      let posto = null;
+      for (const d of [r + 6, r + 30, r + 58, r + 92]) {
+        const tentativas = [
+          [cx + d, cy + 4, 'start'], [cx - d, cy + 4, 'end'],
+          [cx, cy - d - 2, 'middle'], [cx, cy + d + alt - 2, 'middle'],
+          [cx + d * .72, cy - d * .72, 'start'], [cx - d * .72, cy - d * .72, 'end'],
+          [cx + d * .72, cy + d * .72 + 6, 'start'], [cx - d * .72, cy + d * .72 + 6, 'end']
+        ];
+        posto = tentativas.map(([lx, ly, anc]) => {
+          const x1 = anc === 'start' ? lx : anc === 'end' ? lx - larg : lx - larg / 2;
+          return { lx, ly, anc, d, x1: x1 - 2, x2: x1 + larg + 2, y1: ly - acima, y2: ly + abaixo };
+        }).find(cabe);
+        if (posto) break;
+      }
+      if (!posto) { lb.remove(); omitidos++; return; }
+      ocupadas.push(posto);
+      if (posto.d > r + 12) {
+        // a guia encosta na borda da bolha e para antes do texto, sem cruzá-lo
+        const ax = posto.anc === 'start' ? posto.x1 - 4 : posto.anc === 'end' ? posto.x2 + 4 : posto.lx;
+        const ay = posto.ly - 4;
+        const ang = Math.atan2(ay - cy, ax - cx);
+        svg.appendChild(svgEl('line', {
+          x1: cx + Math.cos(ang) * (r + 1), y1: cy + Math.sin(ang) * (r + 1),
+          x2: ax, y2: ay, stroke: '#9fb0c4', 'stroke-width': 1, 'stroke-dasharray': '2 2'
+        }));
+      }
+      lb.setAttribute('x', posto.lx);
+      lb.setAttribute('y', posto.ly);
+      lb.setAttribute('text-anchor', posto.anc);
     });
 
     const xl = svgEl('text', { x: (mL + W - mR) / 2, y: H - 8, 'text-anchor': 'middle', class: 'tick' });
     xl.textContent = xLabel;
     svg.appendChild(xl);
+
     const yl = svgEl('text', { x: 14, y: (mT + H - mB) / 2, 'text-anchor': 'middle', class: 'tick', transform: `rotate(-90 14 ${(mT + H - mB) / 2})` });
     yl.textContent = yLabel;
     svg.appendChild(yl);
-    container.appendChild(svg);
+
+    if (omitidos) {
+      const av = document.createElement('p');
+      av.className = 'chart-nota';
+      av.textContent = (omitidos === 1
+        ? '1 rótulo não coube sem sobrepor outro'
+        : `${omitidos} rótulos não couberam sem sobrepor outros`)
+        + ' — passe o mouse na bolha ou abra a tabela abaixo.';
+      container.appendChild(av);
+    }
 
     if (grupos.length) {
       const leg = document.createElement('div');
@@ -9954,7 +10028,51 @@ function dftChaveIA() {
   return iaChaveDoArquivo() || iaChaveSalva() || IA.chave || '';
 }
 
-const OTIM = { ocupado: false, erro: '', proposta: null, detalhe: null };
+const OTIM = { ocupado: false, erro: '', proposta: null, detalhe: null, prog: null };
+
+const OTIM_FASES = [
+  [0,  'Enviando o corpus de evidência'],
+  [6,  'Lendo os estudos e os efeitos medidos'],
+  [16, 'Comparando o escopo de cada estudo com as categorias'],
+  [30, 'Aplicando a cautela e estimando'],
+  [46, 'Escrevendo o racional de cada categoria']
+];
+
+function otimComecaProgresso() {
+  otimParaProgresso();
+  OTIM.prog = { pct: 0, fase: OTIM_FASES[0][1], t0: Date.now(), timer: null };
+  OTIM.prog.timer = setInterval(() => {
+    if (!OTIM.prog) return;
+    const seg = (Date.now() - OTIM.prog.t0) / 1000;
+    OTIM.prog.pct = Math.min(92, 100 * (1 - Math.exp(-seg / 30)));
+    const f = OTIM_FASES.filter(x => seg >= x[0]).pop();
+    OTIM.prog.fase = f ? f[1] : OTIM_FASES[0][1];
+    const el = document.getElementById('otim-prog');
+    if (el) el.innerHTML = otimBarraHTML();
+  }, 450);
+}
+
+function otimParaProgresso() {
+  if (OTIM.prog && OTIM.prog.timer) clearInterval(OTIM.prog.timer);
+  OTIM.prog = null;
+}
+
+// mesma barra do mapeamento: mede tempo, não trabalho concluído
+function otimBarraHTML() {
+  const p = OTIM.prog || { pct: 0, fase: 'Preparando', t0: Date.now() };
+  const seg = Math.round((Date.now() - p.t0) / 1000);
+  return `
+    <div class="ia-prog" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+         aria-valuenow="${Math.round(p.pct)}" aria-label="Progresso da estimativa">
+      <div class="ia-prog-topo">
+        <span class="ia-prog-fase">${E(p.fase)}</span>
+        <span class="ia-prog-tempo mono">${seg}s</span>
+      </div>
+      <div class="ia-prog-trilha"><div class="ia-prog-barra" style="width:${p.pct.toFixed(1)}%"></div></div>
+      <p class="ia-prog-nota">Costuma levar de 20 a 60 segundos. A barra é uma estimativa por
+        tempo — a API responde de uma vez só, sem informar o quanto já andou.</p>
+    </div>`;
+}
 
 function otimPromptSistema() {
   return `Você apoia o Dimensionamento da Força de Trabalho (DFT) do Estado do Paraná.
@@ -10082,6 +10200,7 @@ async function otimEstimar() {
   const s = st();
   OTIM.erro = ''; OTIM.ocupado = true; OTIM.proposta = null;
   telaCargosIA();
+  otimComecaProgresso();
   try {
     const r = await otimChamar(s);
     const porId = {};
@@ -10106,6 +10225,7 @@ async function otimEstimar() {
         'Abrindo a página do disco (file://) isso acontece: sirva a pasta com o abrir.cmd ou o abrir.sh.'
       : e.message;
   }
+  otimParaProgresso();
   OTIM.ocupado = false;
   telaCargosIA();
 }
@@ -10130,6 +10250,27 @@ function otimSalvar() {
   });
   Store.salvar();
   OTIM.proposta = null;
+  telaCargosIA();
+}
+
+/* Zera os dois percentuais de todas as categorias e apaga o racional que a IA
+   tinha gravado. Serve para recomeçar a estimativa do zero — sem isso, a IA
+   recebe os valores atuais como âncora e tende a só ajustá-los. */
+function otimZerar() {
+  const s = st();
+  const cats = s.categoriasIA || [];
+  const comIA = cats.filter(c => c.baseIA).length;
+  if (!confirm(`Zerar produtividade e demanda das ${cats.length} categorias?\n\n`
+    + (comIA ? `O racional e as fontes de ${comIA} categoria(s) estimada(s) com IA serão apagados.\n\n` : '')
+    + 'Isso muda o DFT projetado, que passa a não prever ganho nenhum. Não dá para desfazer.')) return;
+  cats.forEach(c => {
+    c.potProdutividade = 0;
+    c.potDemanda = 0;
+    c.evidencia = '';
+    delete c.baseIA;
+  });
+  Store.salvar();
+  OTIM.proposta = null; OTIM.erro = '';
   telaCargosIA();
 }
 
@@ -10189,6 +10330,9 @@ function otimAbreDetalhe(catId) {
 function otimPainel(podeEditar) {
   if (!podeEditar) return '';
   const p = OTIM.proposta;
+  const cats = st().categoriasIA || [];
+  // só faz sentido zerar o que não está zerado
+  const temEstimativa = cats.some(c => (c.potProdutividade || 0) || (c.potDemanda || 0) || c.baseIA);
   const seta = (antes, depois) => {
     const d = depois - antes;
     return `<span class="mono">${fmtN(antes)}% → <b>${fmtN(depois)}%</b></span>` +
@@ -10205,8 +10349,9 @@ function otimPainel(podeEditar) {
       <button class="btn" id="otim-estimar" ${OTIM.ocupado ? 'disabled' : ''}>
         ${OTIM.ocupado ? 'Estimando…' : 'Estimar com IA'}</button>
       <button class="btn btn-sec" id="otim-corpus">Ver o corpus de evidência</button>
+      ${temEstimativa ? `<button class="btn btn-sec btn-perigo-fraco" id="otim-zerar">Zerar estimativas</button>` : ''}
     </div>
-    ${OTIM.ocupado ? '<div class="ia-status"><span class="ia-girando"></span> Lendo o corpus e estimando as categorias. Costuma levar de 20 a 60 segundos.</div>' : ''}
+    <div id="otim-prog">${OTIM.ocupado ? otimBarraHTML() : ''}</div>
     ${OTIM.erro ? `<div class="banner erro" style="margin:12px 0 0">${E(OTIM.erro)}</div>` : ''}
     ${!p ? '' : `
       <div class="otim-proposta">
@@ -10265,6 +10410,8 @@ function otimLiga(corpo, podeEditar) {
   if (bE) bE.addEventListener('click', otimEstimar);
   const bC = document.getElementById('otim-corpus');
   if (bC) bC.addEventListener('click', otimAbreCorpus);
+  const bZ = document.getElementById('otim-zerar');
+  if (bZ) bZ.addEventListener('click', otimZerar);
   const bS = document.getElementById('otim-salvar');
   if (bS) bS.addEventListener('click', otimSalvar);
   const bD = document.getElementById('otim-descartar');
