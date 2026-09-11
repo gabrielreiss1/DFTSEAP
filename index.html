@@ -7439,6 +7439,57 @@ function telaPainel() {
    Nada aqui é persistido: a chave da API e os arquivos vivem só em memória.
    ============================================================ */
 
+/* ---------- leitura da resposta da IA ----------
+   A resposta vem como um JSON só. Quando ela bate no teto de tokens, o texto
+   chega cortado no meio de um objeto e JSON.parse falha com uma mensagem de
+   posição que não diz nada a quem está usando. Em vez de perder tudo, varre-se
+   o array recortando os objetos que fecharam — costuma sobrar a maior parte. */
+function dftObjetosCompletos(txt, chave) {
+  const abre = txt.indexOf('"' + chave + '"');
+  if (abre < 0) return [];
+  const col = txt.indexOf('[', abre);
+  if (col < 0) return [];
+  const itens = [];
+  let i = col + 1, ini = -1, prof = 0, emTexto = false, escapa = false;
+  for (; i < txt.length; i++) {
+    const c = txt[i];
+    if (emTexto) {                       // dentro de string, chave não conta
+      if (escapa) escapa = false;
+      else if (c === '\\') escapa = true;
+      else if (c === '"') emTexto = false;
+      continue;
+    }
+    if (c === '"') { emTexto = true; continue; }
+    if (c === '{') { if (prof === 0) ini = i; prof++; continue; }
+    if (c === '}') {
+      prof--;
+      if (prof === 0 && ini >= 0) {
+        try { itens.push(JSON.parse(txt.slice(ini, i + 1))); } catch (e) { /* descarta o quebrado */ }
+        ini = -1;
+      }
+      continue;
+    }
+    if (c === ']' && prof === 0) break;   // fim do array
+  }
+  return itens;
+}
+
+// Converte o texto da resposta em objeto. Devolve {dados, truncado}.
+function dftLeRespostaIA(txt, chaves) {
+  const limpo = txt.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+  try { return { dados: JSON.parse(limpo), truncado: false }; }
+  catch (e) { /* segue para o resgate */ }
+  const dados = {};
+  let achou = false;
+  chaves.forEach(k => {
+    const itens = dftObjetosCompletos(limpo, k);
+    if (itens.length) achou = true;
+    dados[k] = itens;
+  });
+  if (!achou) throw new Error('A resposta não veio em JSON válido. Tente novamente.');
+  return { dados, truncado: true };
+}
+
 const DFT_IA_MODELO = 'claude-sonnet-4-6';
 const DFT_IA_URL = 'https://api.anthropic.com/v1/messages';
 const DFT_IA_MAX_LINHAS = 600;   // linhas do e-Protocolo enviadas por vez
@@ -7880,7 +7931,7 @@ async function iaChamar(u, s) {
     },
     body: JSON.stringify({
       model: DFT_IA_MODELO,
-      max_tokens: 4000,
+      max_tokens: 16000,
       system: iaPromptSistema(u),
       messages: [{ role: 'user', content: iaBlocosConteudo(u, s) }]
     })
@@ -7903,17 +7954,13 @@ async function iaChamar(u, s) {
     throw new Error(`A API respondeu ${resp.status}. ${detalhe}`);
   }
 
-  const dados = await resp.json();
-  const txt = (dados.content || [])
+  const resposta = await resp.json();
+  const txt = (resposta.content || [])
     .filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
-  const limpo = txt.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
-  try {
-    return JSON.parse(limpo);
-  } catch (e) {
-    const i = limpo.indexOf('{'), f = limpo.lastIndexOf('}');
-    if (i >= 0 && f > i) return JSON.parse(limpo.slice(i, f + 1));
-    throw new Error('A resposta não veio em JSON válido. Tente novamente.');
-  }
+  const { dados, truncado } = dftLeRespostaIA(txt, ['entregas', 'descartados']);
+  // stop_reason diz de fato se bateu no teto; o resgate cobre o resto
+  dados._truncado = truncado || resposta.stop_reason === 'max_tokens';
+  return dados;
 }
 
 /* ---------- a aba ---------- */
@@ -8252,6 +8299,9 @@ async function iaRodar(uId) {
     IA.propostas = (r.entregas || []).map(e => Object.assign({ _marcada: true }, e));
     IA.descartados = r.descartados || [];
     if (!IA.propostas.length) IA.erro = 'A IA não encontrou entregas com evidência suficiente. Tente incluir mais documentos.';
+    else if (r._truncado) IA.erro = `A resposta da IA foi cortada no limite de tamanho. `
+      + `Aproveitei as ${IA.propostas.length} entregas que vieram completas — revise e importe normalmente. `
+      + `Para pegar o resto, rode de novo com menos documentos ou menos linhas do e-Protocolo.`;
   } catch (e) {
     // A chamada nem chegou à API: o erro é do navegador, não da Anthropic. Como
     // ele não diz o motivo (por segurança), a mensagem lista o que costuma ser.
@@ -10160,7 +10210,7 @@ async function otimChamar(s) {
     },
     body: JSON.stringify({
       model: DFT_OTIM_MODELO,
-      max_tokens: 4000,
+      max_tokens: 16000,
       system: otimPromptSistema(),
       messages: [{ role: 'user', content: otimBlocosConteudo(s) }]
     })
@@ -10179,15 +10229,11 @@ async function otimChamar(s) {
     throw new Error(`A API respondeu ${resp.status}. ${detalhe}`);
   }
 
-  const dados = await resp.json();
-  const txt = (dados.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
-  const limpo = txt.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
-  try { return JSON.parse(limpo); }
-  catch (e) {
-    const i = limpo.indexOf('{'), f = limpo.lastIndexOf('}');
-    if (i >= 0 && f > i) return JSON.parse(limpo.slice(i, f + 1));
-    throw new Error('A resposta não veio em JSON válido. Tente novamente.');
-  }
+  const resposta = await resp.json();
+  const txt = (resposta.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+  const { dados, truncado } = dftLeRespostaIA(txt, ['categorias']);
+  dados._truncado = truncado || resposta.stop_reason === 'max_tokens';
+  return dados;
 }
 
 async function otimEstimar() {
@@ -10212,6 +10258,9 @@ async function otimEstimar() {
     if (!OTIM.proposta.itens.length) {
       OTIM.erro = 'A IA não devolveu estimativa para nenhuma categoria conhecida.';
       OTIM.proposta = null;
+    } else if (r._truncado) {
+      OTIM.erro = `A resposta foi cortada no limite de tamanho. Vieram completas `
+        + `${OTIM.proposta.itens.length} de ${s.categoriasIA.length} categorias — as demais ficaram como estão.`;
     }
   } catch (e) {
     OTIM.erro = /Failed to fetch|NetworkError|Load failed/i.test(e.message)
